@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\AccreditationAuthorizationService;
 use App\Services\AccreditationProjectContextService;
 use App\Services\AccreditationWorkflowActivityService;
+use App\Support\BusinessDateTime;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -117,8 +118,9 @@ class Index extends Component
             ->orderByDesc('id')
             ->paginate(self::PER_PAGE);
         $paginator->setCollection($activity->project($paginator->getCollection(), $project));
-        $todayStart = now(config('app.timezone'))->startOfDay();
-        $todayEnd = $todayStart->copy()->endOfDay();
+        $today = BusinessDateTime::today()->toDateString();
+        $todayStart = BusinessDateTime::startOfDayUtc($today);
+        $todayEnd = BusinessDateTime::endOfDayUtc($today);
         $todayCount = (clone $authorizedQuery)
             ->whereBetween('created_at', [$todayStart, $todayEnd])
             ->count();

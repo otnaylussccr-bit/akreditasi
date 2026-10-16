@@ -75,7 +75,7 @@
             <div class="team-activity-list">
                 @forelse ($activities as $activity)
                     <article style="--activity-color: {{ $activity['color'] }}">
-                        <time><strong>{{ $activity['created_at']->format('d M Y') }}</strong><span>{{ $activity['created_at']->format('H:i') }}</span></time>
+                        <time><strong>{{ \App\Support\BusinessDateTime::format($activity['created_at'], 'd M Y') }}</strong><span>{{ \App\Support\BusinessDateTime::label($activity['created_at'], 'H:i') }}</span></time>
                         <span class="team-activity-event-icon" aria-hidden="true">
                             @switch($activity['category'])
                                 @case('upload') &#8593; @break
@@ -113,7 +113,7 @@
 
         <aside class="team-activity-sidebar">
             <section class="team-activity-summary">
-                <header><h2>Ringkasan Aktivitas</h2><span>{{ now()->format('d M Y') }}</span></header>
+                <header><h2>Ringkasan Aktivitas</h2><span>{{ \App\Support\BusinessDateTime::today()->format('d M Y') }} WIB</span></header>
                 <div class="team-activity-kpis">
                     <article class="kpi-today"><span aria-hidden="true">&#9638;</span><div><small>Aktivitas Hari Ini</small><strong>{{ $todayCount }}</strong><p>Semua event hari ini, tidak dipengaruhi periode</p></div></article>
                     <article class="kpi-verified"><span aria-hidden="true">&#10003;</span><div><small>Keputusan Terverifikasi</small><strong>{{ $verifiedCount }}</strong><p>Dalam periode dan filter terpilih</p></div></article>

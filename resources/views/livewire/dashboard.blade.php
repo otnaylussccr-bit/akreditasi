@@ -3,7 +3,7 @@
         <div class="dashboard-refresh-status" role="status" aria-live="polite">
             <span><i aria-hidden="true"></i>Pembaruan otomatis setiap 30 detik</span>
             @if ($lastUpdatedAt)
-                <time datetime="{{ $lastUpdatedAt }}">Terakhir diperbarui {{ \Illuminate\Support\Carbon::parse($lastUpdatedAt)->format('d M Y, H:i:s') }}</time>
+                <time datetime="{{ $lastUpdatedAt }}">Terakhir diperbarui {{ \App\Support\BusinessDateTime::label($lastUpdatedAt, 'd M Y, H:i:s') }}</time>
             @endif
         </div>
     @endif
@@ -206,7 +206,7 @@
                             <article>
                                 <span class="activity-mark" aria-hidden="true">&bull;</span>
                                 <div>
-                                    <div><strong>{{ $activity['label'] }}</strong><time>{{ $activity['created_at']?->format('d M Y, H:i') ?? 'Waktu tidak tersedia' }}</time></div>
+                                    <div><strong>{{ $activity['label'] }}</strong><time>{{ $activity['created_at'] ? \App\Support\BusinessDateTime::label($activity['created_at']) : 'Waktu tidak tersedia' }}</time></div>
                                     <p><a href="{{ $activity['url'] }}">{{ $activity['item_code'] }} &middot; {{ $activity['item_title'] }}</a></p>
                                     <small>Oleh {{ $activity['actor'] }}</small>
                                 </div>

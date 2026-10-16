@@ -15,6 +15,7 @@ use App\Models\AccreditationReviewSubmission;
 use App\Models\StudyProgram;
 use App\Models\User;
 use App\Services\AccreditationDocumentUploadService;
+use Carbon\CarbonImmutable;
 use Database\Seeders\AccreditationRolePermissionSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
@@ -93,6 +94,27 @@ class PhaseThreeBDocumentUploadTest extends TestCase
             'subject_type' => AccreditationDocument::class,
             'subject_id' => $document->id,
         ]);
+    }
+
+    public function test_new_pic_upload_keeps_utc_storage_and_displays_the_actual_wib_time(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-16 09:00:00', 'UTC'));
+        [, $criterion, , $requirement] = $this->context('TIMEZONE');
+        $pic = $this->userWithRole('PIC Kriteria');
+        $this->assignment($criterion, $pic, true);
+        $this->actingAs($pic);
+
+        Livewire::test(Upload::class, ['requirement' => $requirement])
+            ->set('files', [$this->pdf('wib-upload.pdf')])
+            ->call('saveDocuments')
+            ->assertHasNoErrors()
+            ->assertSee('16 Oct 2026, 16:00 WIB');
+
+        $document = AccreditationDocument::sole();
+        $activity = AccreditationActivityLog::sole();
+
+        $this->assertSame('2026-10-16 09:00:00 +00:00', $document->uploaded_at->format('Y-m-d H:i:s P'));
+        $this->assertTrue($document->uploaded_at->equalTo($activity->created_at));
     }
 
     public function test_pic_cannot_upload_to_another_criterion_or_project(): void

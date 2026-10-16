@@ -388,6 +388,7 @@ class DashboardTest extends TestCase
         $viewerDashboard = Livewire::test(Dashboard::class)
             ->assertSee('wire:poll.30s.visible="refreshDashboard"', false)
             ->assertSee('Pembaruan otomatis setiap 30 detik')
+            ->assertSee('15 Oct 2026, 17:00:00 WIB')
             ->assertSee('Total Butir')
             ->assertSee('Terverifikasi')
             ->assertSee('Menunggu Verifikasi')
@@ -419,7 +420,8 @@ class DashboardTest extends TestCase
         $viewerDashboard
             ->call('refreshDashboard')
             ->assertHasNoErrors()
-            ->assertSee('Terakhir diperbarui');
+            ->assertSee('Terakhir diperbarui')
+            ->assertSee('15 Oct 2026, 17:00:31 WIB');
 
         $this->assertNotSame($initialUpdatedAt, $viewerDashboard->get('lastUpdatedAt'));
         $this->assertSame(2, $viewerDashboard->viewData('summary')['status_counts']['verified']);

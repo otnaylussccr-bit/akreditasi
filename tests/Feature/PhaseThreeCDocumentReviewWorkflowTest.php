@@ -19,6 +19,7 @@ use App\Models\StudyProgram;
 use App\Models\User;
 use App\Services\AccreditationDocumentUploadService;
 use App\Services\AccreditationReviewWorkflowService;
+use Carbon\CarbonImmutable;
 use Database\Seeders\AccreditationRolePermissionSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\UploadedFile;
@@ -243,6 +244,39 @@ class PhaseThreeCDocumentReviewWorkflowTest extends TestCase
             'subject_id' => $submission->id,
         ]);
         $this->assertFalse(Gate::forUser($pic)->allows('upload', $requirement->fresh()));
+    }
+
+    public function test_submission_review_and_activity_share_utc_instants_and_display_wib(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-16 23:30:00', 'UTC'));
+        [, $criterion, , $requirement] = $this->context();
+        $pic = $this->userWithRole('PIC Kriteria');
+        $this->assign($criterion, $pic, 'pic');
+        $reviewer = $this->activeReviewer($criterion);
+        $this->document($requirement, $pic);
+
+        $submission = $this->submit($requirement, $pic);
+        $submitEvent = $submission->events()->where('action', 'submit')->sole();
+        $submitActivity = AccreditationActivityLog::query()->where('event', 'document.submitted')->sole();
+
+        $this->assertTrue($submission->submitted_at->equalTo($submitEvent->created_at));
+        $this->assertTrue($submission->submitted_at->equalTo($submitActivity->created_at));
+
+        $this->actingAs($reviewer);
+        Livewire::test(VerificationShow::class, ['submission' => $submission])
+            ->assertSee('17 Oct 2026')
+            ->assertSee('06:30 WIB');
+
+        $this->travel(1)->hour();
+        $decided = $this->decide($submission, $reviewer, 'verified', null);
+        $decisionEvent = $decided->events()->where('action', 'verified')->sole();
+        $decisionActivity = AccreditationActivityLog::query()->where('event', 'document.verified')->sole();
+
+        $this->assertTrue($decided->decided_at->equalTo($decisionEvent->created_at));
+        $this->assertTrue($decided->decided_at->equalTo($decisionActivity->created_at));
+
+        Livewire::test(VerificationShow::class, ['submission' => $decided])
+            ->assertSee('17 Oct 2026, 07:30 WIB');
     }
 
     public function test_requirement_workflows_remain_independent_and_follow_up_uses_mixed_progress(): void

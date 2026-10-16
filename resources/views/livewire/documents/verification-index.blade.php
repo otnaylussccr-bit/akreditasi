@@ -76,7 +76,7 @@
                             </td>
                             <td><strong>{{ $submission->submitter->name }}</strong><small>Revisi {{ $submission->revision_number }}</small></td>
                             <td><strong>{{ $submission->documents_count }}</strong><small>snapshot file</small></td>
-                            <td><strong>{{ $submission->submitted_at->format('d M Y') }}</strong><small>{{ $submission->submitted_at->format('H:i') }}</small></td>
+                            <td><strong>{{ \App\Support\BusinessDateTime::format($submission->submitted_at, 'd M Y') }}</strong><small>{{ \App\Support\BusinessDateTime::label($submission->submitted_at, 'H:i') }}</small></td>
                             <td><span class="workflow-badge status-{{ $submission->status }}">{{ $statusLabels[$submission->status] ?? $submission->status }}</span></td>
                             <td><a href="{{ route('verifications.show', $submission) }}" wire:navigate>Buka Verifikasi</a></td>
                         </tr>

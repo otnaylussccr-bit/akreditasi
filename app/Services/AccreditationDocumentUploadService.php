@@ -58,6 +58,7 @@ class AccreditationDocumentUploadService
                 $documents = collect();
 
                 foreach ($files as $file) {
+                    $uploadedAt = now();
                     $uuid = (string) Str::uuid();
                     $extension = strtolower($file->getClientOriginalExtension());
                     $path = $this->paths->build($target, $revision, $uuid, $extension);
@@ -96,7 +97,7 @@ class AccreditationDocumentUploadService
                         'sha256' => $this->storedFileHash($path),
                         'revision_number' => $revision,
                         'is_active' => true,
-                        'uploaded_at' => now(),
+                        'uploaded_at' => $uploadedAt,
                         'superseded_at' => null,
                     ]);
 
@@ -117,6 +118,7 @@ class AccreditationDocumentUploadService
                         ],
                         'ip_address' => request()->ip(),
                         'user_agent' => request()->userAgent(),
+                        'created_at' => $uploadedAt,
                     ]);
 
                     $documents->push($document);

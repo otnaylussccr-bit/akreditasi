@@ -9,8 +9,8 @@ use App\Models\AccreditationDocumentRequirement;
 use App\Models\AccreditationProject;
 use App\Models\AccreditationReviewSubmission;
 use App\Models\User;
+use App\Support\BusinessDateTime;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class AccreditationWorkflowActivityService
@@ -107,9 +107,9 @@ class AccreditationWorkflowActivityService
             ->when($event !== '', fn (Builder $activities) => $activities->where('event', $event))
             ->when($actorId !== null, fn (Builder $activities) => $activities->where('actor_id', $actorId))
             ->when($dateFrom !== null, fn (Builder $activities) => $activities
-                ->where('created_at', '>=', Carbon::parse($dateFrom, config('app.timezone'))->startOfDay()))
+                ->where('created_at', '>=', BusinessDateTime::startOfDayUtc($dateFrom)))
             ->when($dateTo !== null, fn (Builder $activities) => $activities
-                ->where('created_at', '<=', Carbon::parse($dateTo, config('app.timezone'))->endOfDay()));
+                ->where('created_at', '<=', BusinessDateTime::endOfDayUtc($dateTo)));
 
         if ($search !== '') {
             $criterionIds = AccreditationCriterion::query()

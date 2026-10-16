@@ -8,6 +8,7 @@ use App\Services\AccreditationAuthorizationService;
 use App\Services\AccreditationProgressService;
 use App\Services\AccreditationProjectContextService;
 use App\Services\AccreditationWorkflowActivityService;
+use App\Support\BusinessDateTime;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -220,7 +221,8 @@ class Dashboard extends Component
     private function deadlineSummary(AccreditationProject $project): array
     {
         $deadline = $project->final_deadline->copy()->startOfDay();
-        $days = (int) now()->startOfDay()->diffInDays($deadline, false);
+        $businessDeadline = $deadline->copy()->setTimezone(config('app.business_timezone'))->startOfDay();
+        $days = (int) BusinessDateTime::today()->diffInDays($businessDeadline, false);
 
         return [
             'date' => $deadline,
@@ -244,7 +246,10 @@ class Dashboard extends Component
             ->map(function (AccreditationItem $item) use ($includeLinks, $project): ?array {
                 $deadline = $item->target_deadline ?? $item->source_deadline;
                 $days = $deadline
-                    ? (int) now()->startOfDay()->diffInDays($deadline->copy()->startOfDay(), false)
+                    ? (int) BusinessDateTime::today()->diffInDays(
+                        $deadline->copy()->setTimezone(config('app.business_timezone'))->startOfDay(),
+                        false,
+                    )
                     : null;
                 $isOverdue = $days !== null && $days < 0;
                 $isNearDeadline = $days !== null && $days >= 0 && $days <= self::ATTENTION_THRESHOLD_DAYS;

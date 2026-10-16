@@ -163,6 +163,36 @@ class TeamActivityTest extends TestCase
         $component->set('event', 'not-a-real-event')->assertForbidden();
     }
 
+    public function test_date_filter_uses_wib_day_boundaries_instead_of_utc_midnight(): void
+    {
+        $project = $this->project('WIB-BOUNDARY');
+        $criterion = $this->criterion($project, 'A', 1, 'Batas Hari WIB');
+        $requirement = $this->requirement($criterion, 'Dokumen Batas Hari');
+        $pic = $this->user('PIC Kriteria', 'PIC Batas Hari');
+        $admin = $this->user('Super Admin', 'Admin Batas Hari');
+        $document = $this->document($requirement, $pic, 'batas-hari.pdf');
+
+        $this->activity($project, $document, $pic, 'document.uploaded', Carbon::parse('2026-10-15 16:59:59', 'UTC'));
+        $this->activity($project, $document, $pic, 'document.uploaded', Carbon::parse('2026-10-15 17:00:00', 'UTC'));
+        $insideStartId = AccreditationActivityLog::query()->max('id');
+        $this->activity($project, $document, $pic, 'document.uploaded', Carbon::parse('2026-10-16 16:59:59', 'UTC'));
+        $insideEndId = AccreditationActivityLog::query()->max('id');
+        $this->activity($project, $document, $pic, 'document.uploaded', Carbon::parse('2026-10-16 17:00:00', 'UTC'));
+
+        $this->actingAs($admin);
+        $component = Livewire::withQueryParams([
+            'proyek' => $project->id,
+            'dari' => '2026-10-16',
+            'sampai' => '2026-10-16',
+        ])->test(Index::class);
+
+        $this->assertSame(2, $component->viewData('activities')->total());
+        $this->assertSame(
+            [$insideEndId, $insideStartId],
+            $component->viewData('activities')->getCollection()->pluck('id')->all(),
+        );
+    }
+
     public function test_dashboard_and_activity_page_share_order_projection_and_project_link(): void
     {
         $this->travelTo(Carbon::parse('2026-10-14 12:00:00'));

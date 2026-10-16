@@ -87,7 +87,7 @@
                     <div><dt>Format</dt><dd>{{ $extension }}</dd></div>
                     <div><dt>Ukuran</dt><dd>{{ $formattedSize }}</dd></div>
                     <div><dt>Uploader</dt><dd>{{ $document->uploader->name }}</dd></div>
-                    <div><dt>Tanggal Upload</dt><dd>{{ $document->uploaded_at->format('d M Y, H:i') }}</dd></div>
+                    <div><dt>Tanggal Upload</dt><dd>{{ \App\Support\BusinessDateTime::label($document->uploaded_at) }}</dd></div>
                     <div><dt>Nomor Revisi</dt><dd>v{{ $document->revision_number }}</dd></div>
                     <div><dt>Status File</dt><dd>{{ $document->is_active ? 'Aktif' : 'Historis' }}</dd></div>
                 </dl>

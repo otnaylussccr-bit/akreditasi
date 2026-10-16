@@ -38,7 +38,7 @@
         <div><small>Butir Terkait</small><strong>{{ $criterion->code }}.{{ $item->number }}</strong><span>{{ $item->title }}</span></div>
         <div><small>Kriteria</small><strong>{{ $criterion->code }}</strong><span>{{ $criterion->name }}</span></div>
         <div><small>PIC / Submitter</small><strong>{{ $submission->submitter->name }}</strong><span>Revisi {{ $submission->revision_number }}</span></div>
-        <div><small>Tanggal Submit</small><strong>{{ $submission->submitted_at->format('d M Y') }}</strong><span>{{ $submission->submitted_at->format('H:i') }}</span></div>
+        <div><small>Tanggal Submit</small><strong>{{ \App\Support\BusinessDateTime::format($submission->submitted_at, 'd M Y') }}</strong><span>{{ \App\Support\BusinessDateTime::label($submission->submitted_at, 'H:i') }}</span></div>
         <div><small>Snapshot</small><strong>{{ $submission->documents->count() }} file</strong><span>Tidak berubah setelah submit</span></div>
     </section>
 
@@ -92,7 +92,7 @@
                                     <span class="verification-history-revision">v{{ $historySubmission->revision_number }}</span>
                                     <div>
                                         <strong>{{ $historySubmission->submitter->name }}</strong>
-                                        <small>{{ $historySubmission->submitted_at->format('d M Y, H:i') }} &bull; {{ $historySubmission->documents_count }} file</small>
+                                        <small>{{ \App\Support\BusinessDateTime::label($historySubmission->submitted_at) }} &bull; {{ $historySubmission->documents_count }} file</small>
                                     </div>
                                     <span class="workflow-badge status-{{ $historySubmission->status }}">{{ str($historySubmission->status)->replace('_', ' ')->title() }}</span>
                                 </div>
@@ -204,7 +204,7 @@
                         <strong>{{ $submission->status === 'verified' ? 'Terverifikasi' : ($submission->status === 'need_revision' ? 'Perlu Revisi' : 'Mode Pemantauan') }}</strong>
                         <p>{{ $submission->review_note ?: 'Tidak ada catatan keputusan.' }}</p>
                         @if ($submission->decider)
-                            <small>Diputuskan oleh {{ $submission->decider->name }} pada {{ $submission->decided_at->format('d M Y, H:i') }}</small>
+                            <small>Diputuskan oleh {{ $submission->decider->name }} pada {{ \App\Support\BusinessDateTime::label($submission->decided_at) }}</small>
                         @endif
                         @if ($decisionEvent?->attachments->isNotEmpty())
                             <div class="verification-stored-attachments compact">

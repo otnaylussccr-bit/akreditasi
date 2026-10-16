@@ -295,7 +295,7 @@
                                 <td><span class="file-extension">{{ strtoupper($document->extension) }}</span></td>
                                 <td>{{ $document->size_bytes >= 1048576 ? number_format($document->size_bytes / 1048576, 2).' MB' : number_format($document->size_bytes / 1024, 1).' KB' }}</td>
                                 <td>{{ $document->uploader->name }}</td>
-                                <td>{{ $document->uploaded_at->format('d M Y, H:i') }}</td>
+                                <td>{{ \App\Support\BusinessDateTime::label($document->uploaded_at) }}</td>
                                 <td>v{{ $document->revision_number }}</td>
                                 <td><span class="document-active-state {{ $document->is_active ? 'active' : 'historical' }}">{{ $document->is_active ? 'Aktif' : 'Historis' }}</span></td>
                                 <td>
@@ -327,7 +327,7 @@
                         <div>
                             <div class="review-note-meta">
                                 <strong>{{ $reviewNote['actor_name'] }}</strong>
-                                <time>{{ $reviewNote['created_at']->format('d M Y, H:i') }}</time>
+                                <time>{{ \App\Support\BusinessDateTime::label($reviewNote['created_at']) }}</time>
                             </div>
                             <span class="workflow-badge status-{{ $reviewNote['status'] }}">{{ $statusLabels[$reviewNote['status']] ?? $reviewNote['status'] }}</span>
                             <p>{{ $reviewNote['note'] }}</p>

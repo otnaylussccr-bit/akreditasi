@@ -182,7 +182,7 @@
                                     <td>{{ strtoupper($document->extension) }}</td>
                                     <td>{{ $formatBytes($document->size_bytes) }}</td>
                                     <td>{{ $document->uploader->name }}</td>
-                                    <td>{{ $document->uploaded_at->format('d M Y, H:i') }}</td>
+                                    <td>{{ \App\Support\BusinessDateTime::label($document->uploaded_at) }}</td>
                                     <td><span class="workflow-badge status-{{ $requirement->workflow_status }}">{{ $statusLabels[$requirement->workflow_status] ?? $requirement->workflow_status }}</span></td>
                                     <td><strong>v{{ $document->revision_number }}</strong><small>{{ $document->is_active ? 'Aktif' : 'Historis' }}</small></td>
                                     <td>
@@ -236,7 +236,7 @@
                             <div><dt>Format</dt><dd>{{ strtoupper($selectedDocument->extension) }}</dd></div>
                             <div><dt>Ukuran</dt><dd>{{ $formatBytes($selectedDocument->size_bytes) }}</dd></div>
                             <div><dt>Uploader</dt><dd>{{ $selectedDocument->uploader->name }}</dd></div>
-                            <div><dt>Tanggal Upload</dt><dd>{{ $selectedDocument->uploaded_at->format('d M Y, H:i') }}</dd></div>
+                            <div><dt>Tanggal Upload</dt><dd>{{ \App\Support\BusinessDateTime::label($selectedDocument->uploaded_at) }}</dd></div>
                             <div><dt>Versi File</dt><dd>v{{ $selectedDocument->revision_number }}</dd></div>
                             <div><dt>Status File (Metadata)</dt><dd>{{ $selectedDocument->is_active ? 'Aktif' : 'Historis' }}</dd></div>
                         </dl>
@@ -258,7 +258,7 @@
                         <div class="repository-version-list">
                             @foreach ($versions as $version)
                                 <article class="{{ $version->id === $selectedDocument->id ? 'selected' : '' }}">
-                                    <button type="button" wire:click="selectDocument({{ $version->id }})"><strong>v{{ $version->revision_number }} &middot; {{ $version->original_name }}</strong><span>{{ $version->uploaded_at->format('d M Y, H:i') }} oleh {{ $version->uploader->name }}</span></button>
+                                    <button type="button" wire:click="selectDocument({{ $version->id }})"><strong>v{{ $version->revision_number }} &middot; {{ $version->original_name }}</strong><span>{{ \App\Support\BusinessDateTime::label($version->uploaded_at) }} oleh {{ $version->uploader->name }}</span></button>
                                     <span class="repository-file-state {{ $version->is_active ? 'active' : 'historical' }}">{{ $version->is_active ? 'Aktif' : 'Historis' }}</span>
                                     <div class="repository-snapshot-list">
                                         @forelse ($version->reviewSubmissions as $submission)

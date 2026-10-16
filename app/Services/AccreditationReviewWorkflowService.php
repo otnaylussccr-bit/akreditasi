@@ -11,6 +11,7 @@ use App\Models\AccreditationReviewEvent;
 use App\Models\AccreditationReviewSubmission;
 use App\Models\User;
 use App\Rules\SecureAccreditationDocument;
+use DateTimeInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Auth;
@@ -114,12 +115,13 @@ class AccreditationReviewWorkflowService
                 ]);
             }
 
+            $submittedAt = now();
             $submission = AccreditationReviewSubmission::create([
                 'requirement_id' => $target->id,
                 'submitted_by' => $user->id,
                 'revision_number' => $revision,
                 'status' => 'pending_review',
-                'submitted_at' => now(),
+                'submitted_at' => $submittedAt,
                 'decided_at' => null,
                 'decided_by' => null,
                 'review_note' => null,
@@ -136,7 +138,7 @@ class AccreditationReviewWorkflowService
                 'actor_id' => $user->id,
                 'action' => 'submit',
                 'note' => null,
-                'created_at' => now(),
+                'created_at' => $submittedAt,
             ]);
             $this->logActivity(
                 $target,
@@ -149,6 +151,7 @@ class AccreditationReviewWorkflowService
                     'revision_number' => $revision,
                     'document_ids' => $documents->modelKeys(),
                 ],
+                $submittedAt,
             );
 
             return $submission->load('documents');
@@ -213,9 +216,10 @@ class AccreditationReviewWorkflowService
                     ]);
                 }
 
+                $decidedAt = now();
                 $target->update([
                     'status' => $decision,
-                    'decided_at' => now(),
+                    'decided_at' => $decidedAt,
                     'decided_by' => $reviewer->id,
                     'review_note' => $note !== '' ? $note : null,
                 ]);
@@ -226,7 +230,7 @@ class AccreditationReviewWorkflowService
                     'actor_id' => $reviewer->id,
                     'action' => $decision,
                     'note' => $note !== '' ? $note : null,
-                    'created_at' => now(),
+                    'created_at' => $decidedAt,
                 ]);
                 $attachments = collect();
 
@@ -275,7 +279,7 @@ class AccreditationReviewWorkflowService
                         'extension' => $extension,
                         'file_size' => Storage::disk('local')->size($path),
                         'sha256' => $this->storedFileHash(Storage::disk('local'), $path),
-                        'uploaded_at' => now(),
+                        'uploaded_at' => $decidedAt,
                     ]));
                 }
 
@@ -301,6 +305,7 @@ class AccreditationReviewWorkflowService
                             'sha256' => $attachment->sha256,
                         ])->all(),
                     ],
+                    $decidedAt,
                 );
 
                 return $target->fresh(['documents', 'decider', 'events.attachments']);
@@ -415,6 +420,7 @@ class AccreditationReviewWorkflowService
         string $event,
         array $oldValues,
         array $newValues,
+        DateTimeInterface $createdAt,
     ): void {
         AccreditationActivityLog::create([
             'project_id' => $requirement->item->criterion->project_id,
@@ -426,6 +432,7 @@ class AccreditationReviewWorkflowService
             'new_values' => $newValues,
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
+            'created_at' => $createdAt,
         ]);
     }
 }
