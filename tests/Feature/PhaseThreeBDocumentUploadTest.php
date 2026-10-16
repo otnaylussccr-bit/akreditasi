@@ -468,11 +468,11 @@ class PhaseThreeBDocumentUploadTest extends TestCase
         [$project, , , $requirement] = $this->context();
         $uploader = $this->userWithRole('PIC Kriteria');
         $document = $this->storedDocument($requirement, $uploader);
-        $viewer = $this->userWithRole('Viewer');
-        $this->membership($project, $viewer, 'viewer');
+        $manager = $this->userWithRole('Project Manager');
+        $this->membership($project, $manager, 'project_manager');
         $outsider = $this->userWithRole('Viewer');
 
-        $this->actingAs($viewer)
+        $this->actingAs($manager)
             ->get(route('documents.preview', $document))
             ->assertOk()
             ->assertViewIs('documents.preview')
@@ -510,9 +510,9 @@ class PhaseThreeBDocumentUploadTest extends TestCase
     {
         [$project, , , $requirement] = $this->context();
         $uploader = $this->userWithRole('PIC Kriteria');
-        $viewer = $this->userWithRole('Viewer');
-        $this->membership($project, $viewer, 'viewer');
-        $this->actingAs($viewer);
+        $manager = $this->userWithRole('Project Manager');
+        $this->membership($project, $manager, 'project_manager');
+        $this->actingAs($manager);
 
         foreach ([
             ['photo.jpeg', 'jpeg', 'image/jpeg'],
@@ -542,9 +542,9 @@ class PhaseThreeBDocumentUploadTest extends TestCase
     {
         [$project, $criterion, $item, $requirement] = $this->context();
         $uploader = $this->userWithRole('PIC Kriteria');
-        $viewer = $this->userWithRole('Viewer');
-        $this->membership($project, $viewer, 'viewer');
-        $this->actingAs($viewer);
+        $manager = $this->userWithRole('Project Manager');
+        $this->membership($project, $manager, 'project_manager');
+        $this->actingAs($manager);
 
         foreach ([
             ['supporting-document.docx', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
@@ -579,12 +579,12 @@ class PhaseThreeBDocumentUploadTest extends TestCase
         }
     }
 
-    public function test_authorized_user_can_open_historical_document_in_viewer(): void
+    public function test_authorized_user_can_open_historical_document_in_preview(): void
     {
         [$project, , , $requirement] = $this->context();
         $uploader = $this->userWithRole('PIC Kriteria');
-        $viewer = $this->userWithRole('Viewer');
-        $this->membership($project, $viewer, 'viewer');
+        $manager = $this->userWithRole('Project Manager');
+        $this->membership($project, $manager, 'project_manager');
         $document = $this->storedDocument(
             $requirement,
             $uploader,
@@ -592,7 +592,7 @@ class PhaseThreeBDocumentUploadTest extends TestCase
             revisionNumber: 2,
         );
 
-        $this->actingAs($viewer)
+        $this->actingAs($manager)
             ->get(route('documents.preview', $document))
             ->assertOk()
             ->assertSee('Historis')
@@ -609,10 +609,10 @@ class PhaseThreeBDocumentUploadTest extends TestCase
         [$project, , , $requirement] = $this->context();
         $uploader = $this->userWithRole('PIC Kriteria');
         $document = $this->storedDocument($requirement, $uploader, false);
-        $viewer = $this->userWithRole('Viewer');
-        $this->membership($project, $viewer, 'viewer');
+        $manager = $this->userWithRole('Project Manager');
+        $this->membership($project, $manager, 'project_manager');
 
-        $previewResponse = $this->actingAs($viewer)->get(route('documents.preview', $document));
+        $previewResponse = $this->actingAs($manager)->get(route('documents.preview', $document));
         $previewResponse
             ->assertOk()
             ->assertSee('File tidak tersedia')

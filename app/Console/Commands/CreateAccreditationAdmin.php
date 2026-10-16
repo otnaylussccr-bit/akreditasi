@@ -3,10 +3,10 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Support\PasswordPolicy;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Models\Role;
 
 class CreateAccreditationAdmin extends Command
@@ -38,11 +38,7 @@ class CreateAccreditationAdmin extends Command
         $validator = Validator::make($data, [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => [
-                'required',
-                'confirmed',
-                Password::min(12)->letters()->mixedCase()->numbers()->symbols(),
-            ],
+            'password' => PasswordPolicy::rules(),
         ]);
 
         if ($validator->fails()) {

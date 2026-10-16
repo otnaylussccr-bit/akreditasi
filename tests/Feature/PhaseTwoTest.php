@@ -103,7 +103,7 @@ class PhaseTwoTest extends TestCase
         $this->assertFalse($superAdmin->hasPermissionTo('document.verify'));
         $this->assertTrue($reviewer->hasPermissionTo('document.verify'));
         $this->assertFalse($reviewer->hasPermissionTo('document.upload'));
-        $this->assertTrue($viewer->hasPermissionTo('document.view'));
+        $this->assertFalse($viewer->hasPermissionTo('document.view'));
         $this->assertFalse($viewer->hasPermissionTo('project.manage'));
     }
 

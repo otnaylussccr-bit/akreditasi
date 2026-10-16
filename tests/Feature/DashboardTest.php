@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Auth\Login;
 use App\Livewire\Dashboard;
+use App\Livewire\Documents\Upload;
 use App\Models\AccreditationActivityLog;
 use App\Models\AccreditationCriterion;
 use App\Models\AccreditationCriterionAssignment;
@@ -11,6 +13,7 @@ use App\Models\AccreditationDocumentRequirement;
 use App\Models\AccreditationItem;
 use App\Models\AccreditationProject;
 use App\Models\AccreditationProjectMember;
+use App\Models\AdministrativeAuditLog;
 use App\Models\StudyProgram;
 use App\Models\User;
 use Database\Seeders\AccreditationRolePermissionSeeder;
@@ -18,6 +21,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class DashboardTest extends TestCase
@@ -343,6 +347,194 @@ class DashboardTest extends TestCase
 
         $this->assertNull($component->viewData('project'));
         $this->assertTrue($component->viewData('projects')->isEmpty());
+    }
+
+    public function test_viewer_tv_dashboard_polls_read_only_and_matches_super_admin_aggregates_for_a_to_f(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-15 10:00:00'));
+        $project = $this->project('TV', '2026-10-30', 'APU-BIOTEK-2026');
+        $statuses = [
+            'A' => ['verified'],
+            'B' => ['pending_review'],
+            'C' => ['need_revision'],
+            'D' => ['draft'],
+            'E' => ['verified', 'draft'],
+            'F' => ['not_started'],
+        ];
+        $requirements = [];
+
+        foreach ($statuses as $code => $itemStatuses) {
+            $criterion = $this->criterion($project, $code, ord($code) - 64, "Kriteria {$code}");
+            $this->itemWithStatuses($criterion, 1, 1, "Header {$code}", ['not_started']);
+            $workItem = $this->item($criterion, 2, 2, "Butir {$code}.2");
+
+            foreach ($itemStatuses as $index => $status) {
+                $requirements[$code][] = $this->requirement($workItem, $index + 1, $status);
+            }
+        }
+
+        $viewer = $this->userWithRole('Viewer');
+        $viewer->forceFill(['email' => 'dashboard@akreditasi.apu'])->save();
+        $this->membership($project, $viewer, 'viewer', true);
+
+        Livewire::test(Login::class)
+            ->set('email', 'dashboard@akreditasi.apu')
+            ->set('password', 'ValidPassword!123')
+            ->call('login')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('dashboard'));
+        $this->assertAuthenticatedAs($viewer);
+
+        $viewerDashboard = Livewire::test(Dashboard::class)
+            ->assertSee('wire:poll.30s.visible="refreshDashboard"', false)
+            ->assertSee('Pembaruan otomatis setiap 30 detik')
+            ->assertSee('Total Butir')
+            ->assertSee('Terverifikasi')
+            ->assertSee('Menunggu Verifikasi')
+            ->assertSee('Perlu Revisi')
+            ->assertSee('Draft')
+            ->assertSee('Dalam Proses')
+            ->assertSee('Belum Mulai');
+
+        $this->assertSame(1, substr_count($viewerDashboard->html(), 'wire:poll.30s.visible="refreshDashboard"'));
+        $this->assertSame(['A', 'B', 'C', 'D', 'E', 'F'], $viewerDashboard->viewData('criteriaProgress')->pluck('criterion.code')->all());
+        $this->assertSame(6, $viewerDashboard->viewData('summary')['work_count']);
+        $this->assertSame([
+            'verified' => 1,
+            'pending_review' => 1,
+            'need_revision' => 1,
+            'draft' => 1,
+            'in_progress' => 1,
+            'not_started' => 1,
+        ], $viewerDashboard->viewData('summary')['status_counts']->all());
+        $this->assertNull($viewerDashboard->viewData('followUpUrl'));
+        $this->assertTrue($viewerDashboard->viewData('attentionItems')->every(fn (array $entry): bool => $entry['url'] === null));
+
+        $initialUpdatedAt = $viewerDashboard->get('lastUpdatedAt');
+        $activityCount = AccreditationActivityLog::query()->count();
+        $auditCount = AdministrativeAuditLog::query()->count();
+        $requirements['F'][0]->update(['workflow_status' => 'verified']);
+        $this->travel(31)->seconds();
+
+        $viewerDashboard
+            ->call('refreshDashboard')
+            ->assertHasNoErrors()
+            ->assertSee('Terakhir diperbarui');
+
+        $this->assertNotSame($initialUpdatedAt, $viewerDashboard->get('lastUpdatedAt'));
+        $this->assertSame(2, $viewerDashboard->viewData('summary')['status_counts']['verified']);
+        $this->assertSame(0, $viewerDashboard->viewData('summary')['status_counts']['not_started']);
+        $this->assertSame($activityCount, AccreditationActivityLog::query()->count());
+        $this->assertSame($auditCount, AdministrativeAuditLog::query()->count());
+
+        $viewerSnapshot = [
+            'work_count' => $viewerDashboard->viewData('summary')['work_count'],
+            'status_counts' => $viewerDashboard->viewData('summary')['status_counts']->all(),
+            'criteria' => $viewerDashboard->viewData('criteriaProgress')->pluck('criterion.code')->all(),
+        ];
+        $admin = $this->userWithRole('Super Admin');
+        $this->actingAs($admin);
+        $adminDashboard = Livewire::test(Dashboard::class)
+            ->assertDontSee('wire:poll.30s.visible="refreshDashboard"', false);
+
+        $this->assertSame($viewerSnapshot, [
+            'work_count' => $adminDashboard->viewData('summary')['work_count'],
+            'status_counts' => $adminDashboard->viewData('summary')['status_counts']->all(),
+            'criteria' => $adminDashboard->viewData('criteriaProgress')->pluck('criterion.code')->all(),
+        ]);
+    }
+
+    public function test_viewer_sidebar_is_non_navigable_and_operational_routes_and_actions_stay_forbidden(): void
+    {
+        $project = $this->project('VIEWER-NAV', '2026-10-30', 'APU-BIOTEK-2026');
+        $criterion = $this->criterion($project, 'A', 1, 'Kriteria A');
+        $requirement = $this->requirement($this->item($criterion, 2, 1, 'Butir A.2'), 1, 'not_started');
+        $document = $this->document($requirement, $this->userWithRole('PIC Kriteria'), 'private.pdf');
+        $viewer = $this->userWithRole('Viewer');
+        $this->membership($project, $viewer, 'viewer', true);
+        $this->actingAs($viewer);
+
+        $response = $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('href="'.route('dashboard', ['proyek' => $project->id]).'"', false)
+            ->assertSee('href="'.route('profile.password').'"', false);
+        $html = $response->getContent();
+
+        $this->assertSame(6, substr_count($html, 'data-viewer-disabled="true"'));
+        preg_match_all('/<span[^>]*data-viewer-disabled="true"[^>]*>/', $html, $disabledItems);
+        $this->assertCount(6, $disabledItems[0]);
+
+        foreach ($disabledItems[0] as $disabledItem) {
+            $this->assertStringNotContainsString('href=', $disabledItem);
+            $this->assertStringNotContainsString('wire:', $disabledItem);
+            $this->assertStringNotContainsString('tabindex=', $disabledItem);
+        }
+
+        foreach (['Input Dokumen', 'Repository Bukti', 'Verifikasi Dokumen', 'Follow Up LED', 'Aktivitas Tim', 'Pengaturan'] as $label) {
+            $this->assertStringContainsString("aria-label=\"{$label} - Akses terbatas untuk role Viewer\"", $html);
+        }
+
+        foreach ([
+            route('documents.index'),
+            route('documents.upload', $requirement),
+            route('documents.preview', $document),
+            route('documents.download', $document),
+            route('repository.index'),
+            route('verifications.index'),
+            route('follow-up-led.index'),
+            route('team-activity.index'),
+            route('administration.users.index'),
+            route('administration.roles.index'),
+        ] as $protectedUrl) {
+            $this->assertStringNotContainsString("href=\"{$protectedUrl}", $html);
+            $this->get($protectedUrl)->assertForbidden();
+        }
+
+        $this->get(route('profile.password'))->assertOk();
+        Livewire::test(Upload::class, ['requirement' => $requirement])->assertForbidden();
+    }
+
+    public function test_non_viewer_and_mixed_role_navigation_remains_permission_driven(): void
+    {
+        $project = $this->project('NAV-REGRESSION', '2026-10-30');
+        $criterion = $this->criterion($project, 'A', 1, 'Kriteria A');
+        $this->itemWithStatuses($criterion, 1, 1, 'Butir A', ['not_started']);
+        $admin = $this->userWithRole('Super Admin');
+        $this->actingAs($admin);
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('href="'.route('documents.index', ['proyek' => $project->id]).'"', false)
+            ->assertSee('href="'.route('repository.index', ['proyek' => $project->id]).'"', false)
+            ->assertSee('href="'.route('follow-up-led.index', ['proyek' => $project->id]).'"', false)
+            ->assertSee('href="'.route('administration.users.index').'"', false)
+            ->assertDontSee('data-viewer-disabled="true"', false);
+        $this->get(route('documents.index'))->assertOk();
+
+        $mixedRoleUser = $this->userWithRole('PIC Kriteria');
+        $mixedRoleUser->assignRole('Viewer');
+        $this->assignment($criterion, $mixedRoleUser, 'pic', true);
+        $this->actingAs($mixedRoleUser);
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('href="'.route('documents.index', ['proyek' => $project->id]).'"', false)
+            ->assertDontSee('data-viewer-disabled="true"', false);
+    }
+
+    public function test_viewer_poll_rechecks_dashboard_permission(): void
+    {
+        $project = $this->project('POLL-AUTH', '2026-10-30');
+        $criterion = $this->criterion($project, 'A', 1, 'Kriteria A');
+        $this->itemWithStatuses($criterion, 1, 1, 'Butir A', ['not_started']);
+        $viewer = $this->userWithRole('Viewer');
+        $this->membership($project, $viewer, 'viewer', true);
+        $this->actingAs($viewer);
+        $component = Livewire::test(Dashboard::class);
+
+        Role::findByName('Viewer', 'web')->revokePermissionTo('dashboard.view');
+
+        $component->call('refreshDashboard')->assertForbidden();
     }
 
     private function project(string $suffix, string $deadline, ?string $code = null): AccreditationProject

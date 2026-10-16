@@ -143,8 +143,7 @@ class EvidenceRepositoryTest extends TestCase
         $this->assertEqualsCanonicalizing([$documentA->id, $documentB->id], $managerRepository->viewData('documents')->pluck('id')->all());
 
         $this->actingAs($viewer);
-        $viewerRepository = Livewire::test(Index::class)->assertSee('FILE-A.pdf')->assertSee('FILE-B.pdf')->assertDontSee('FILE-C.pdf')->assertDontSee('Upload Dokumen');
-        $this->assertEqualsCanonicalizing([$documentA->id, $documentB->id], $viewerRepository->viewData('documents')->pluck('id')->all());
+        Livewire::test(Index::class)->assertForbidden();
 
         $this->actingAs($admin);
         $adminRepository = Livewire::withQueryParams(['proyek' => $outsideProject->id])->test(Index::class)->assertSee('FILE-C.pdf')->assertSee('Upload Dokumen');
@@ -260,10 +259,10 @@ class EvidenceRepositoryTest extends TestCase
         $uploader = $this->userWithRole('PIC Kriteria');
         $pdf = $this->document($requirement, $uploader, 'native-preview.pdf', 1, true, '2026-01-01 09:00:00');
         $office = $this->document($requirement, $uploader, 'office-download.docx', 1, true, '2026-01-02 09:00:00', 'docx');
-        $viewer = $this->userWithRole('Viewer');
-        $this->membership($project, $viewer, 'viewer');
+        $manager = $this->userWithRole('Project Manager');
+        $this->membership($project, $manager, 'project_manager');
         Queue::fake();
-        $this->actingAs($viewer);
+        $this->actingAs($manager);
 
         Livewire::test(Index::class)
             ->assertSee(route('documents.preview', ['document' => $pdf, 'asal' => 'repository']), false)

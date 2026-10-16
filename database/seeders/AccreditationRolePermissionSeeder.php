@@ -47,7 +47,7 @@ class AccreditationRolePermissionSeeder extends Seeder
             'activity.view',
         ],
         'Viewer' => [
-            'dashboard.view', 'project.view', 'criterion.view', 'document.view',
+            'dashboard.view', 'project.view', 'criterion.view',
         ],
     ];
 

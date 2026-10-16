@@ -41,6 +41,7 @@ class Login extends Component
         if (! Auth::attempt([
             'email' => $this->email,
             'password' => $credentials['password'],
+            'is_active' => true,
         ], $this->remember)) {
             RateLimiter::hit($key, 60);
 

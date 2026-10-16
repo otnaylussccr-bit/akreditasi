@@ -33,11 +33,18 @@ class Dashboard extends Component
     #[Url(as: 'proyek', except: null)]
     public ?int $projectId = null;
 
+    public ?string $lastUpdatedAt = null;
+
     public function mount(
         AccreditationAuthorizationService $authorization,
         AccreditationProjectContextService $context,
     ): void {
-        abort_unless(Auth::user()->can('dashboard.view'), 403);
+        $this->authorizeDashboard();
+
+        if ($this->isViewerTvMode()) {
+            $this->lastUpdatedAt = now()->toIso8601String();
+        }
+
         $projects = $context->ordered($this->authorizedProjects($authorization));
         $project = $context->resolve($projects, $this->projectId);
 
@@ -55,7 +62,16 @@ class Dashboard extends Component
         AccreditationAuthorizationService $authorization,
         AccreditationProjectContextService $context,
     ): void {
+        $this->authorizeDashboard();
         $this->projectId = $context->select($this->authorizedProjects($authorization), $projectId)->id;
+    }
+
+    public function refreshDashboard(): void
+    {
+        $this->authorizeDashboard();
+        abort_unless($this->isViewerTvMode(), 403);
+
+        $this->lastUpdatedAt = now()->toIso8601String();
     }
 
     public function render(
@@ -64,7 +80,9 @@ class Dashboard extends Component
         AccreditationWorkflowActivityService $activity,
         AccreditationProjectContextService $context,
     ) {
+        $this->authorizeDashboard();
         $user = Auth::user();
+        $viewerTvMode = $this->isViewerTvMode();
         $projects = $context->ordered($this->authorizedProjects($authorization));
 
         if ($projects->isEmpty()) {
@@ -72,9 +90,22 @@ class Dashboard extends Component
         }
 
         $project = $projects->firstWhere('id', $this->projectId);
+
+        if (! $project && $this->projectId === null) {
+            $project = $context->resolve($projects);
+            $this->projectId = $project?->id;
+        }
+
         abort_unless($project, 403);
         $criteria = $authorization->accessibleCriteria($user, $project)
-            ->with('items.requirements')
+            ->select(['id', 'project_id', 'code', 'name', 'color_header', 'color_body', 'position'])
+            ->with(['items' => function ($items): void {
+                $items
+                    ->select(['id', 'criterion_id', 'number', 'title', 'source_deadline', 'target_deadline', 'position'])
+                    ->orderBy('position')
+                    ->with(['requirements' => fn ($requirements) => $requirements
+                        ->select(['id', 'item_id', 'is_required', 'workflow_status'])]);
+            }])
             ->orderBy('position')
             ->get();
         $items = $criteria->flatMap(function ($criterion): Collection {
@@ -102,21 +133,25 @@ class Dashboard extends Component
             'statusBuckets' => $statusBuckets,
             'donutGradient' => $this->donutGradient($statusBuckets, $summary['work_count']),
             'deadline' => $this->deadlineSummary($project),
-            'attentionItems' => $this->attentionItems($summary['work_items'], $project),
+            'attentionItems' => $this->attentionItems($summary['work_items'], $project, ! $viewerTvMode),
             'attentionThresholdDays' => self::ATTENTION_THRESHOLD_DAYS,
-            'activities' => $activity->latest($user, $project),
+            'activities' => $canViewActivity ? $activity->latest($user, $project) : collect(),
             'canViewActivity' => $canViewActivity,
             'activityUrl' => $canViewActivity
                 ? route('team-activity.index', ['proyek' => $project->id])
                 : null,
-            'followUpUrl' => route('follow-up-led.index', ['proyek' => $project->id]),
+            'followUpUrl' => $viewerTvMode
+                ? null
+                : route('follow-up-led.index', ['proyek' => $project->id]),
+            'viewerTvMode' => $viewerTvMode,
         ]);
     }
 
     private function authorizedProjects(AccreditationAuthorizationService $authorization): Collection
     {
         return $authorization->accessibleProjects(Auth::user())
-            ->with('studyProgram')
+            ->select(['id', 'code', 'name', 'study_program_id', 'final_deadline', 'status'])
+            ->with('studyProgram:id,name')
             ->get();
     }
 
@@ -137,6 +172,7 @@ class Dashboard extends Component
             'activityUrl' => null,
             'followUpUrl' => null,
             'statusLabels' => $progress->statusLabels(),
+            'viewerTvMode' => $this->isViewerTvMode(),
         ];
     }
 
@@ -198,11 +234,14 @@ class Dashboard extends Component
         ];
     }
 
-    private function attentionItems(Collection $workItems, AccreditationProject $project): Collection
-    {
+    private function attentionItems(
+        Collection $workItems,
+        AccreditationProject $project,
+        bool $includeLinks,
+    ): Collection {
         return $workItems
             ->filter(fn (AccreditationItem $item): bool => $item->aggregate_status !== 'verified')
-            ->map(function (AccreditationItem $item) use ($project): ?array {
+            ->map(function (AccreditationItem $item) use ($includeLinks, $project): ?array {
                 $deadline = $item->target_deadline ?? $item->source_deadline;
                 $days = $deadline
                     ? (int) now()->startOfDay()->diffInDays($deadline->copy()->startOfDay(), false)
@@ -233,11 +272,13 @@ class Dashboard extends Component
                         $days === 0 => 'Hari ini',
                         default => $days.' hari lagi',
                     },
-                    'url' => route('follow-up-led.index', [
-                        'proyek' => $project->id,
-                        'kriteria' => $item->criterion_id,
-                        'cari' => $item->title,
-                    ]),
+                    'url' => $includeLinks
+                        ? route('follow-up-led.index', [
+                            'proyek' => $project->id,
+                            'kriteria' => $item->criterion_id,
+                            'cari' => $item->title,
+                        ])
+                        : null,
                 ];
             })
             ->filter()
@@ -249,5 +290,15 @@ class Dashboard extends Component
             ])
             ->take(5)
             ->values();
+    }
+
+    private function authorizeDashboard(): void
+    {
+        abort_unless(Auth::user()?->can('dashboard.view'), 403);
+    }
+
+    private function isViewerTvMode(): bool
+    {
+        return Auth::user()?->hasExactRoles('Viewer') ?? false;
     }
 }

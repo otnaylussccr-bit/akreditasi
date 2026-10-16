@@ -29,8 +29,35 @@ abstract class TestCase extends BaseTestCase
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->boolean('is_active')->default(true);
+            $table->timestamp('deactivated_at')->nullable();
+            $table->unsignedBigInteger('deactivated_by')->nullable();
             $table->rememberToken();
             $table->timestamps();
+        });
+
+        Schema::create('sessions', function (Blueprint $table): void {
+            $table->string('id')->primary();
+            $table->unsignedBigInteger('user_id')->nullable()->index();
+            $table->string('ip_address', 45)->nullable();
+            $table->text('user_agent')->nullable();
+            $table->longText('payload');
+            $table->integer('last_activity')->index();
+        });
+
+        Schema::create('administrative_audit_logs', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('actor_id')->nullable();
+            $table->string('actor_name');
+            $table->string('event', 100);
+            $table->string('subject_type', 160);
+            $table->unsignedBigInteger('subject_id');
+            $table->string('subject_label')->nullable();
+            $table->json('old_values')->nullable();
+            $table->json('new_values')->nullable();
+            $table->string('ip_address', 45)->nullable();
+            $table->text('user_agent')->nullable();
+            $table->timestamp('created_at')->nullable();
         });
 
         Schema::create('roles', function (Blueprint $table): void {
@@ -137,6 +164,7 @@ abstract class TestCase extends BaseTestCase
             $table->string('membership_role', 32);
             $table->boolean('is_active');
             $table->timestamps();
+            $table->unique(['project_id', 'user_id', 'membership_role']);
         });
 
         Schema::create('accreditation_criterion_assignments', function (Blueprint $table): void {
@@ -146,6 +174,7 @@ abstract class TestCase extends BaseTestCase
             $table->string('assignment_role', 24);
             $table->boolean('is_active');
             $table->timestamps();
+            $table->unique(['criterion_id', 'user_id', 'assignment_role']);
         });
 
         Schema::create('accreditation_documents', function (Blueprint $table): void {

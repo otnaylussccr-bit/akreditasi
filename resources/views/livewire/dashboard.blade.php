@@ -1,4 +1,13 @@
-<div class="progress-dashboard-page">
+<div class="progress-dashboard-page" @if ($viewerTvMode) wire:poll.30s.visible="refreshDashboard" @endif>
+    @if ($viewerTvMode)
+        <div class="dashboard-refresh-status" role="status" aria-live="polite">
+            <span><i aria-hidden="true"></i>Pembaruan otomatis setiap 30 detik</span>
+            @if ($lastUpdatedAt)
+                <time datetime="{{ $lastUpdatedAt }}">Terakhir diperbarui {{ \Illuminate\Support\Carbon::parse($lastUpdatedAt)->format('d M Y, H:i:s') }}</time>
+            @endif
+        </div>
+    @endif
+
     @if ($projects->isEmpty())
         <header class="progress-dashboard-heading">
             <div>
@@ -146,7 +155,7 @@
             <section class="dashboard-panel attention-panel">
                 <header class="dashboard-panel-heading simple">
                     <div><span class="dashboard-panel-icon warning" aria-hidden="true">!</span><div><h2>Butir Mendekati Deadline / Perlu Perhatian</h2><p>Urutan: terlambat, perlu revisi, menunggu verifikasi, lalu deadline dalam {{ $attentionThresholdDays }} hari.</p></div></div>
-                    <a href="{{ $followUpUrl }}">Lihat Semua</a>
+                    @if ($followUpUrl)<a href="{{ $followUpUrl }}">Lihat Semua</a>@endif
                 </header>
 
                 <div class="dashboard-attention-table-wrap">
@@ -165,7 +174,13 @@
                                     </td>
                                     <td>{{ $entry['deadline']?->format('d M Y') ?? 'Belum ditentukan' }}</td>
                                     <td><span class="attention-time {{ ($entry['days'] ?? 0) < 0 ? 'overdue' : '' }}">{{ $entry['time_label'] }}</span></td>
-                                    <td><a class="attention-open-link" href="{{ $entry['url'] }}">Buka Butir</a></td>
+                                    <td>
+                                        @if ($entry['url'])
+                                            <a class="attention-open-link" href="{{ $entry['url'] }}">Buka Butir</a>
+                                        @else
+                                            <span class="attention-read-only">Hanya pantauan</span>
+                                        @endif
+                                    </td>
                                 </tr>
                             @empty
                                 <tr><td colspan="8"><div class="dashboard-table-empty"><strong>Tidak ada butir yang memerlukan perhatian.</strong><span>Butir terverifikasi dan deadline di luar threshold tidak ditampilkan.</span></div></td></tr>

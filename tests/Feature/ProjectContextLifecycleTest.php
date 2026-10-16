@@ -219,11 +219,11 @@ class ProjectContextLifecycleTest extends TestCase
             'HISTORY',
             'archived',
         );
-        $viewer = $this->userWithRole('Viewer');
-        $this->membership($project, $viewer, 'viewer');
-        $document = $this->document($requirement, $viewer, 'historical.pdf');
+        $manager = $this->userWithRole('Project Manager');
+        $this->membership($project, $manager, 'project_manager');
+        $document = $this->document($requirement, $manager, 'historical.pdf');
 
-        $this->actingAs($viewer);
+        $this->actingAs($manager);
         $this->get(route('dashboard', ['proyek' => $project->id]))->assertOk();
         $this->get(route('follow-up-led.index', ['proyek' => $project->id]))->assertOk();
         $this->get(route('repository.index', ['proyek' => $project->id]))
