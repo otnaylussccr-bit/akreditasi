@@ -41,7 +41,11 @@ class AccreditationOfficePreviewController extends Controller
         OfficeDocumentPreviewService $previews,
     ): StreamedResponse {
         $this->authorizeSnapshotDocument($submission, $document);
-        abort_unless($previews->status($document)['state'] === 'ready', Response::HTTP_NOT_FOUND);
+        abort_unless(
+            $previews->status($document)['state'] === 'ready',
+            Response::HTTP_NOT_FOUND,
+            __('verification.preview.not_ready'),
+        );
 
         /** @var FilesystemAdapter $disk */
         $disk = Storage::disk((string) config('document-preview.disk'));

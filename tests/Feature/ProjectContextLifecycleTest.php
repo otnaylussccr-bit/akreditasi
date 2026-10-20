@@ -29,6 +29,8 @@ use Tests\TestCase;
 
 class ProjectContextLifecycleTest extends TestCase
 {
+    protected string $testLocale = 'id';
+
     protected function setUp(): void
     {
         parent::setUp();

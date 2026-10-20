@@ -7,11 +7,12 @@ use App\Models\AccreditationCriterionAssignment;
 use App\Models\AccreditationProject;
 use App\Models\AccreditationProjectMember;
 use App\Models\User;
+use App\Support\LocalizedLabel;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
@@ -125,13 +126,13 @@ class UserAccessManagementService
 
             if ($removesSuperAdmin && $target->is($actor)) {
                 throw ValidationException::withMessages([
-                    'roleIds' => 'Role Super Admin tidak dapat dicabut dari akun Anda sendiri.',
+                    'roleIds' => __('administration.service.cannot_remove_own_super_admin'),
                 ]);
             }
 
             if ($removesSuperAdmin && $target->is_active && $activeSuperAdminCount <= 1) {
                 throw ValidationException::withMessages([
-                    'roleIds' => 'Role Super Admin terakhir yang aktif tidak dapat dicabut.',
+                    'roleIds' => __('administration.service.cannot_remove_last_super_admin'),
                 ]);
             }
 
@@ -159,7 +160,7 @@ class UserAccessManagementService
 
             if (! $active && $target->is($actor)) {
                 throw ValidationException::withMessages([
-                    'account' => 'Akun yang sedang digunakan tidak dapat dinonaktifkan.',
+                    'account' => __('administration.service.cannot_deactivate_own_account'),
                 ]);
             }
 
@@ -168,7 +169,7 @@ class UserAccessManagementService
                 && $target->hasRole(self::SUPER_ADMIN_ROLE)
                 && $activeSuperAdminCount <= 1) {
                 throw ValidationException::withMessages([
-                    'account' => 'Super Admin aktif terakhir tidak dapat dinonaktifkan.',
+                    'account' => __('administration.service.cannot_deactivate_last_super_admin'),
                 ]);
             }
 
@@ -203,7 +204,7 @@ class UserAccessManagementService
 
         if ($user->is($actor)) {
             throw ValidationException::withMessages([
-                'resetPassword' => 'Gunakan halaman Profil untuk mengubah password akun Anda sendiri.',
+                'resetPassword' => __('administration.service.use_profile_for_own_password'),
             ]);
         }
 
@@ -212,7 +213,7 @@ class UserAccessManagementService
 
             if (Hash::check($password, $target->password)) {
                 throw ValidationException::withMessages([
-                    'resetPassword' => 'Password baru harus berbeda dari password pengguna saat ini.',
+                    'resetPassword' => __('administration.service.password_must_differ'),
                 ]);
             }
 
@@ -261,7 +262,7 @@ class UserAccessManagementService
             $this->assertCanManageUsers($actor);
 
             if (! $this->authorization->canManageAssignments($actor, $lockedProject)) {
-                throw new AuthorizationException('Anda tidak berhak mengelola scope project ini.');
+                throw new AuthorizationException(__('administration.service.cannot_manage_project_scope'));
             }
 
             $criteria = AccreditationCriterion::query()
@@ -299,7 +300,9 @@ class UserAccessManagementService
 
                 if ($active && ! $target->hasRole($requiredRole) && ! $membership?->is_active) {
                     throw ValidationException::withMessages([
-                        'membershipRoles' => "Role global {$requiredRole} diperlukan untuk membership ini.",
+                        'membershipRoles' => __('administration.service.membership_role_required', [
+                            'role' => LocalizedLabel::role($requiredRole),
+                        ]),
                     ]);
                 }
 
@@ -348,31 +351,37 @@ class UserAccessManagementService
     }
 
     public function changeOwnPassword(
-        User $user,
-        string $currentPassword,
-        string $newPassword,
-        ?string $currentSessionId,
+        #[\SensitiveParameter] string $currentPassword,
+        #[\SensitiveParameter] string $newPassword,
+        #[\SensitiveParameter] ?string $currentSessionId,
     ): void {
-        if (! $user->is_active) {
-            throw new AuthorizationException('Akun tidak aktif.');
+        $user = Auth::user();
+
+        if (! $user instanceof User) {
+            throw new AuthorizationException(__('administration.service.authentication_required'));
         }
 
-        if (! Hash::check($currentPassword, $user->password)) {
-            throw ValidationException::withMessages([
-                'currentPassword' => 'Password saat ini tidak valid.',
-            ]);
-        }
-
-        if (Hash::check($newPassword, $user->password)) {
-            throw ValidationException::withMessages([
-                'newPassword' => 'Password baru harus berbeda dari password saat ini.',
-            ]);
-        }
-
-        DB::transaction(function () use ($user, $newPassword, $currentSessionId): void {
+        DB::transaction(function () use ($user, $currentPassword, $newPassword, $currentSessionId): void {
             $target = User::query()->lockForUpdate()->findOrFail($user->id);
+
+            if (! $target->is_active) {
+                throw new AuthorizationException(__('administration.service.inactive_account'));
+            }
+
+            if (! Hash::check($currentPassword, $target->password)) {
+                throw ValidationException::withMessages([
+                    'currentPassword' => __('profile.invalid_current'),
+                ]);
+            }
+
+            if (Hash::check($newPassword, $target->password)) {
+                throw ValidationException::withMessages([
+                    'newPassword' => __('profile.same_password'),
+                ]);
+            }
+
             $target->forceFill([
-                'password' => $newPassword,
+                'password' => Hash::make($newPassword),
                 'remember_token' => Str::random(60),
             ])->save();
             $this->invalidateSessions($target, $currentSessionId);
@@ -395,7 +404,7 @@ class UserAccessManagementService
 
             if ($target->guard_name !== 'web' || $target->name === self::SUPER_ADMIN_ROLE) {
                 throw ValidationException::withMessages([
-                    'permissionIds' => 'Permission role Super Admin dilindungi dan tidak dapat diubah.',
+                    'permissionIds' => __('administration.service.super_admin_permissions_protected'),
                 ]);
             }
 
@@ -407,7 +416,7 @@ class UserAccessManagementService
 
             if ($permissions->pluck('name')->intersect(self::RESERVED_PERMISSIONS)->isNotEmpty()) {
                 throw ValidationException::withMessages([
-                    'permissionIds' => 'Permission administrasi kritis hanya diperuntukkan bagi Super Admin.',
+                    'permissionIds' => __('administration.service.reserved_permissions'),
                 ]);
             }
 
@@ -452,7 +461,9 @@ class UserAccessManagementService
 
         if (! $target->hasRole($requiredRole) && array_diff($criterionIds, $existingActiveIds) !== []) {
             throw ValidationException::withMessages([
-                $assignmentRole === 'pic' ? 'picCriterionIds' : 'reviewerCriterionIds' => "Role global {$requiredRole} diperlukan untuk assignment ini.",
+                $assignmentRole === 'pic' ? 'picCriterionIds' : 'reviewerCriterionIds' => __('administration.service.assignment_role_required', [
+                    'role' => LocalizedLabel::role($requiredRole),
+                ]),
             ]);
         }
 
@@ -535,11 +546,14 @@ class UserAccessManagementService
 
     private function invalidateSessions(User $user, ?string $exceptSessionId = null): void
     {
-        if (! Schema::hasTable(config('session.table', 'sessions'))) {
+        $connection = DB::connection(config('session.connection'));
+        $table = config('session.table', 'sessions');
+
+        if (! $connection->getSchemaBuilder()->hasTable($table)) {
             return;
         }
 
-        DB::table(config('session.table', 'sessions'))
+        $connection->table($table)
             ->where('user_id', $user->id)
             ->when($exceptSessionId, fn ($sessions) => $sessions->where('id', '!=', $exceptSessionId))
             ->delete();
@@ -548,14 +562,14 @@ class UserAccessManagementService
     private function assertCanManageUsers(User $actor): void
     {
         if (! $this->canManageUsers($actor)) {
-            throw new AuthorizationException('Anda tidak berhak mengelola pengguna.');
+            throw new AuthorizationException(__('administration.service.cannot_manage_users'));
         }
     }
 
     private function assertCanManageRoles(User $actor): void
     {
         if (! $this->canManageRoles($actor)) {
-            throw new AuthorizationException('Anda tidak berhak mengelola role dan permission.');
+            throw new AuthorizationException(__('administration.service.cannot_manage_roles'));
         }
     }
 }

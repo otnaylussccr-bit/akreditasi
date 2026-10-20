@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Documents;
 
+use App\Livewire\Component;
 use App\Models\AccreditationDocumentRequirement;
 use App\Models\AccreditationReviewAttachment;
 use App\Models\User;
@@ -16,13 +17,10 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
-use Livewire\Attributes\Title;
-use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 
 #[Layout('components.layouts.app')]
-#[Title('Upload Dokumen | APU Accreditation')]
 class Upload extends Component
 {
     use WithFileUploads;
@@ -82,7 +80,9 @@ class Upload extends Component
 
         $this->reset('files');
         $this->resetValidation();
-        $this->successMessage = $documents->count().' file berhasil disimpan secara privat.';
+        $this->successMessage = trans_choice('documents.notifications.files_saved', $documents->count(), [
+            'count' => $documents->count(),
+        ]);
     }
 
     public function submitForReview(AccreditationReviewWorkflowService $workflow): void
@@ -92,14 +92,16 @@ class Upload extends Component
 
         if ($this->files !== []) {
             throw ValidationException::withMessages([
-                'submission' => 'Simpan atau hapus file dalam antrean sebelum mengirim ke verifikator.',
+                'submission' => __('documents.validation.resolve_queued_files'),
             ]);
         }
 
         $this->successMessage = null;
         $this->resetValidation('submission');
         $submission = $workflow->submit($requirement, Auth::user());
-        $this->successMessage = 'Revisi '.$submission->revision_number.' berhasil dikirim ke verifikator.';
+        $this->successMessage = __('documents.notifications.revision_submitted', [
+            'revision' => $submission->revision_number,
+        ]);
     }
 
     public function render(
@@ -146,7 +148,7 @@ class Upload extends Component
             ->map(fn (object $event): array => [
                 'key' => 'event-'.$event->id,
                 'submission_id' => $event->submission_id,
-                'actor_name' => $event->actor_name ?? 'Verifikator',
+                'actor_name' => $event->actor_name ?? __('documents.upload.reviewer_fallback'),
                 'status' => $event->action,
                 'note' => $event->note,
                 'created_at' => Carbon::parse($event->created_at),
@@ -155,7 +157,7 @@ class Upload extends Component
             ->concat($submissionNotes->map(fn ($submission): array => [
                 'key' => 'submission-'.$submission->id,
                 'submission_id' => $submission->id,
-                'actor_name' => $reviewerNames[$submission->decided_by] ?? 'Verifikator',
+                'actor_name' => $reviewerNames[$submission->decided_by] ?? __('documents.upload.reviewer_fallback'),
                 'status' => $submission->status,
                 'note' => $submission->review_note,
                 'created_at' => $submission->decided_at ?? $submission->updated_at,
@@ -201,7 +203,7 @@ class Upload extends Component
             'workflowMutable' => $lifecycle->allowsWorkflowMutation(
                 $requirement->item->criterion->project,
             ),
-        ]);
+        ])->title(__('documents.meta.upload_title'));
     }
 
     private function authorizedRequirement(): AccreditationDocumentRequirement

@@ -2,12 +2,14 @@
 
 namespace App\Livewire\Administration\Users;
 
+use App\Livewire\Component;
 use App\Models\AccreditationCriterion;
 use App\Models\AccreditationCriterionAssignment;
 use App\Models\AccreditationProject;
 use App\Models\AccreditationProjectMember;
 use App\Models\User;
 use App\Services\UserAccessManagementService;
+use App\Support\LocalizedLabel;
 use App\Support\PasswordPolicy;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -16,14 +18,11 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
-use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
-use Livewire\Component;
 use Livewire\WithPagination;
 use Spatie\Permission\Models\Role;
 
 #[Layout('components.layouts.app')]
-#[Title('Manajemen Pengguna | APU Accreditation')]
 class Index extends Component
 {
     use WithPagination;
@@ -119,34 +118,38 @@ class Index extends Component
 
     public function saveUser(UserAccessManagementService $access): void
     {
-        $rules = [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->ignore($this->editingUserId),
-            ],
-        ];
+        try {
+            $rules = [
+                'name' => ['required', 'string', 'max:255'],
+                'email' => [
+                    'required',
+                    'email',
+                    'max:255',
+                    Rule::unique('users', 'email')->ignore($this->editingUserId),
+                ],
+            ];
 
-        if ($this->editingUserId === null) {
-            Gate::authorize('create', User::class);
-            $rules['password'] = PasswordPolicy::rules();
-            $rules['roleIds'] = ['required', 'array', 'min:1'];
-            $rules['roleIds.*'] = ['integer', Rule::exists('roles', 'id')->where('guard_name', 'web')];
-            $validated = $this->validate($rules);
-            $user = $access->createUser(Auth::user(), $validated, $this->roleIds);
-            $this->successMessage = "Pengguna {$user->name} berhasil dibuat.";
-        } else {
-            $user = $this->authorizedUser($this->editingUserId, 'update');
-            $validated = $this->validate($rules);
-            $user = $access->updateUser(Auth::user(), $user, $validated);
-            $this->successMessage = "Data {$user->name} berhasil diperbarui.";
+            if ($this->editingUserId === null) {
+                Gate::authorize('create', User::class);
+                $rules['password'] = PasswordPolicy::rules();
+                $rules['roleIds'] = ['required', 'array', 'min:1'];
+                $rules['roleIds.*'] = ['integer', Rule::exists('roles', 'id')->where('guard_name', 'web')];
+                $validated = $this->validate($rules);
+                $user = $access->createUser(Auth::user(), $validated, $this->roleIds);
+                $this->successMessage = __('administration.users.notifications.created', ['name' => $user->name]);
+            } else {
+                $user = $this->authorizedUser($this->editingUserId, 'update');
+                $validated = $this->validate($rules);
+                $user = $access->updateUser(Auth::user(), $user, $validated);
+                $this->successMessage = __('administration.users.notifications.updated', ['name' => $user->name]);
+            }
+
+            $this->resetEditor();
+            $this->editorOpen = false;
+            $this->resetValidation();
+        } finally {
+            $this->reset(['password', 'password_confirmation']);
         }
-
-        $this->resetEditor();
-        $this->editorOpen = false;
-        $this->resetValidation();
     }
 
     public function saveRoles(UserAccessManagementService $access): void
@@ -158,7 +161,7 @@ class Index extends Component
             'roleIds.*' => ['integer', Rule::exists('roles', 'id')->where('guard_name', 'web')],
         ]);
         $access->syncUserRoles(Auth::user(), $user, $this->roleIds);
-        $this->successMessage = "Role {$user->name} berhasil diperbarui tanpa mengubah assignment project.";
+        $this->successMessage = __('administration.users.notifications.roles_updated', ['name' => $user->name]);
         $this->resetEditor();
         $this->editorOpen = false;
         $this->resetValidation();
@@ -169,8 +172,8 @@ class Index extends Component
         $user = $this->authorizedUser($userId, 'toggleActive');
         $updated = $access->setUserActive(Auth::user(), $user, ! $user->is_active);
         $this->successMessage = $updated->is_active
-            ? "Akun {$updated->name} diaktifkan."
-            : "Akun {$updated->name} dinonaktifkan dan session-nya diakhiri.";
+            ? __('administration.users.notifications.activated', ['name' => $updated->name])
+            : __('administration.users.notifications.deactivated', ['name' => $updated->name]);
         $this->resetEditor();
         $this->resetScopeEditor();
     }
@@ -229,7 +232,10 @@ class Index extends Component
             $this->reviewerCriterionIds,
         );
         $this->loadProjectScope($user->fresh('roles'), $project);
-        $this->successMessage = "Scope project {$project->code} untuk {$user->name} berhasil diperbarui.";
+        $this->successMessage = __('administration.users.notifications.scope_updated', [
+            'project' => $project->code,
+            'name' => $user->name,
+        ]);
         $this->resetValidation();
     }
 
@@ -260,24 +266,30 @@ class Index extends Component
 
     public function performPasswordReset(UserAccessManagementService $access): void
     {
-        abort_unless($this->resettingPasswordUserId !== null, 404);
-        $user = $this->authorizedUser($this->resettingPasswordUserId, 'resetPassword');
-        $key = 'admin-password-reset|'.Auth::id().'|'.$user->id.'|'.request()->ip();
+        try {
+            abort_unless($this->resettingPasswordUserId !== null, 404);
+            $user = $this->authorizedUser($this->resettingPasswordUserId, 'resetPassword');
+            $key = 'admin-password-reset|'.Auth::id().'|'.$user->id.'|'.request()->ip();
 
-        if (RateLimiter::tooManyAttempts($key, 5)) {
-            throw ValidationException::withMessages([
-                'resetPassword' => 'Terlalu banyak reset password. Coba kembali dalam '.RateLimiter::availableIn($key).' detik.',
+            if (RateLimiter::tooManyAttempts($key, 5)) {
+                throw ValidationException::withMessages([
+                    'resetPassword' => __('administration.users.validation.password_reset_throttled', [
+                        'seconds' => RateLimiter::availableIn($key),
+                    ]),
+                ]);
+            }
+
+            RateLimiter::hit($key, 600);
+            $validated = $this->validate([
+                'resetPassword' => PasswordPolicy::rules(),
             ]);
+            $access->resetPassword(Auth::user(), $user, $validated['resetPassword']);
+            $this->successMessage = __('administration.users.notifications.password_reset', ['name' => $user->name]);
+            $this->reset(['resettingPasswordUserId', 'resetPassword', 'resetPassword_confirmation']);
+            $this->resetValidation();
+        } finally {
+            $this->reset(['resetPassword', 'resetPassword_confirmation']);
         }
-
-        RateLimiter::hit($key, 600);
-        $validated = $this->validate([
-            'resetPassword' => PasswordPolicy::rules(),
-        ]);
-        $access->resetPassword(Auth::user(), $user, $validated['resetPassword']);
-        $this->successMessage = "Password {$user->name} berhasil direset dan seluruh session-nya diakhiri.";
-        $this->reset(['resettingPasswordUserId', 'resetPassword', 'resetPassword_confirmation']);
-        $this->resetValidation();
     }
 
     public function render()
@@ -295,6 +307,16 @@ class Index extends Component
                     'criterionAssignments' => fn ($assignments) => $assignments
                         ->where('is_active', true)
                         ->with(['criterion:id,project_id,code,name', 'criterion.project:id,code']),
+                    'ledAssessorAssignments' => fn ($assignments) => $assignments
+                        ->with([
+                            'cycle:id,project_id,cycle_number,cycle_name,status',
+                            'cycle.project:id,code,name',
+                            'indicator:id,indicator_number,criterion_code,title',
+                            'assigner:id,name',
+                            'revoker:id,name',
+                        ])
+                        ->orderByDesc('assigned_at')
+                        ->orderByDesc('id'),
                 ])
                 ->when($search !== '', fn ($users) => $users->where(function ($query) use ($search): void {
                     $query->where('name', 'like', "%{$search}%")
@@ -327,8 +349,60 @@ class Index extends Component
                     ->orderBy('position')
                     ->get(['id', 'project_id', 'code', 'name', 'color_header', 'color_body'])
                 : collect(),
-            'membershipRoleLabels' => self::MEMBERSHIP_ROLE_LABELS,
-        ]);
+            'membershipRoleNames' => self::MEMBERSHIP_ROLE_LABELS,
+            'membershipRoleLabels' => array_map(
+                fn (string $role): string => LocalizedLabel::role($role),
+                self::MEMBERSHIP_ROLE_LABELS,
+            ),
+        ])->title(__('administration.users.meta_title'));
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'name.required' => __('administration.validation.required'),
+            'name.string' => __('administration.validation.string'),
+            'name.max' => __('administration.validation.max_string'),
+            'email.required' => __('administration.validation.required'),
+            'email.email' => __('administration.validation.email'),
+            'email.max' => __('administration.validation.max_string'),
+            'email.unique' => __('administration.validation.unique'),
+            'password.required' => __('administration.validation.required'),
+            'password.string' => __('administration.validation.string'),
+            'password.confirmed' => __('administration.validation.confirmed'),
+            'password.min' => __('administration.validation.min_string'),
+            'password.regex' => __('administration.validation.password_format'),
+            'roleIds.required' => __('administration.validation.required'),
+            'roleIds.array' => __('administration.validation.array'),
+            'roleIds.min' => __('administration.validation.min_array'),
+            'roleIds.*.integer' => __('administration.validation.integer'),
+            'roleIds.*.exists' => __('administration.validation.exists'),
+            'scopeProjectId.required' => __('administration.validation.required'),
+            'scopeProjectId.integer' => __('administration.validation.integer'),
+            'scopeProjectId.exists' => __('administration.validation.exists'),
+            'membershipRoles.array' => __('administration.validation.array'),
+            'membershipRoles.*.string' => __('administration.validation.string'),
+            'membershipRoles.*.distinct' => __('administration.validation.distinct'),
+            'membershipRoles.*.in' => __('administration.validation.in'),
+            'picCriterionIds.array' => __('administration.validation.array'),
+            'picCriterionIds.*.integer' => __('administration.validation.integer'),
+            'picCriterionIds.*.distinct' => __('administration.validation.distinct'),
+            'picCriterionIds.*.exists' => __('administration.validation.exists'),
+            'reviewerCriterionIds.array' => __('administration.validation.array'),
+            'reviewerCriterionIds.*.integer' => __('administration.validation.integer'),
+            'reviewerCriterionIds.*.distinct' => __('administration.validation.distinct'),
+            'reviewerCriterionIds.*.exists' => __('administration.validation.exists'),
+            'resetPassword.required' => __('administration.validation.required'),
+            'resetPassword.string' => __('administration.validation.string'),
+            'resetPassword.confirmed' => __('administration.validation.confirmed'),
+            'resetPassword.min' => __('administration.validation.min_string'),
+            'resetPassword.regex' => __('administration.validation.password_format'),
+        ];
+    }
+
+    protected function validationAttributes(): array
+    {
+        return __('administration.users.validation.attributes');
     }
 
     private function authorizedUser(int $userId, string $ability): User

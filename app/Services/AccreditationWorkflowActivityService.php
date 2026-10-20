@@ -10,6 +10,7 @@ use App\Models\AccreditationProject;
 use App\Models\AccreditationReviewSubmission;
 use App\Models\User;
 use App\Support\BusinessDateTime;
+use App\Support\LocalizedLabel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -17,38 +18,28 @@ class AccreditationWorkflowActivityService
 {
     public const EVENTS = [
         'document.uploaded' => [
-            'label' => 'Dokumen diunggah',
-            'short_label' => 'Upload',
+            'translation' => 'document_uploaded',
             'category' => 'upload',
-            'category_label' => 'Upload Dokumen',
             'color' => '#4D91D1',
         ],
         'document.emergency_uploaded' => [
-            'label' => 'Dokumen diunggah oleh Super Admin',
-            'short_label' => 'Upload',
+            'translation' => 'document_emergency_uploaded',
             'category' => 'upload',
-            'category_label' => 'Upload Dokumen',
             'color' => '#4D91D1',
         ],
         'document.submitted' => [
-            'label' => 'Dokumen dikirim untuk verifikasi',
-            'short_label' => 'Dikirim',
+            'translation' => 'document_submitted',
             'category' => 'submission',
-            'category_label' => 'Pengiriman Verifikasi',
             'color' => '#E9AC36',
         ],
         'document.revision_requested' => [
-            'label' => 'Perbaikan dokumen diminta',
-            'short_label' => 'Perlu Revisi',
+            'translation' => 'document_revision_requested',
             'category' => 'revision',
-            'category_label' => 'Revisi',
             'color' => '#C94B4B',
         ],
         'document.verified' => [
-            'label' => 'Dokumen terverifikasi',
-            'short_label' => 'Terverifikasi',
+            'translation' => 'document_verified',
             'category' => 'verification',
-            'category_label' => 'Verifikasi',
             'color' => '#43A878',
         ],
     ];
@@ -61,6 +52,13 @@ class AccreditationWorkflowActivityService
     {
         return $user->can('activity.view')
             || ($user->hasRole('PIC Kriteria') && $user->can('document.view'));
+    }
+
+    public function eventOptions(): array
+    {
+        return collect(self::EVENTS)
+            ->map(fn (array $definition): array => $this->localizedEvent($definition))
+            ->all();
     }
 
     public function query(User $user, AccreditationProject $project, ?int $criterionId = null): Builder
@@ -181,7 +179,9 @@ class AccreditationWorkflowActivityService
                 default => null,
             };
             $item = $subject?->requirement?->item;
-            $event = self::EVENTS[$log->event] ?? null;
+            $event = isset(self::EVENTS[$log->event])
+                ? $this->localizedEvent(self::EVENTS[$log->event])
+                : null;
 
             if (! $item || ! $event) {
                 return null;
@@ -198,8 +198,8 @@ class AccreditationWorkflowActivityService
                 'category_label' => $event['category_label'],
                 'color' => $event['color'],
                 'actor_id' => $actor?->id,
-                'actor' => $actor?->name ?? 'Sistem',
-                'actor_initials' => $this->initials($actor?->name ?? 'Sistem'),
+                'actor' => $actor?->name ?? __('workflow.actors.system'),
+                'actor_initials' => $this->initials($actor?->name ?? __('workflow.actors.system')),
                 'actor_role' => $this->actorRole($actor),
                 'created_at' => $log->created_at,
                 'criterion_id' => $item->criterion_id,
@@ -283,12 +283,7 @@ class AccreditationWorkflowActivityService
 
                 return [
                     'category' => $category,
-                    'label' => $latest['category_label'] ?? match ($category) {
-                        'upload' => 'Upload Dokumen',
-                        'submission' => 'Pengiriman Verifikasi',
-                        'revision' => 'Revisi',
-                        default => 'Verifikasi',
-                    },
+                    'label' => $latest['category_label'] ?? __('workflow.categories.'.$category),
                     'count' => $events->sum(fn (string $event): int => (int) ($eventCounts[$event] ?? 0)),
                     'latest' => $latest,
                 ];
@@ -341,16 +336,27 @@ class AccreditationWorkflowActivityService
     private function actorRole(?User $actor): string
     {
         if (! $actor) {
-            return 'Sistem';
+            return __('workflow.actors.system');
         }
 
         return match (true) {
-            $actor->hasRole('Reviewer') => 'Verifikator Internal',
-            $actor->hasRole('PIC Kriteria') => 'PIC Kriteria',
-            $actor->hasRole('Project Manager') => 'Project Manager',
-            $actor->hasRole('Super Admin') => 'Super Admin',
-            default => $actor->getRoleNames()->first() ?? 'Tim Akreditasi',
+            $actor->hasRole('Reviewer') => __('workflow.actor_roles.internal_reviewer'),
+            $actor->hasRole('PIC Kriteria') => LocalizedLabel::role('PIC Kriteria'),
+            $actor->hasRole('Project Manager') => LocalizedLabel::role('Project Manager'),
+            $actor->hasRole('Super Admin') => LocalizedLabel::role('Super Admin'),
+            default => $actor->getRoleNames()->first() ?? __('workflow.actor_roles.accreditation_team'),
         };
+    }
+
+    private function localizedEvent(array $definition): array
+    {
+        $key = 'workflow.events.'.$definition['translation'];
+
+        return $definition + [
+            'label' => __($key.'.label'),
+            'short_label' => __($key.'.short_label'),
+            'category_label' => __('workflow.categories.'.$definition['category']),
+        ];
     }
 
     private function initials(string $name): string

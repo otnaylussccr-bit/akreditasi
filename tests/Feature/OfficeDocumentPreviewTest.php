@@ -37,6 +37,8 @@ use ZipArchive;
 
 class OfficeDocumentPreviewTest extends TestCase
 {
+    protected string $testLocale = 'id';
+
     private string $temporaryRoot;
 
     protected function setUp(): void
@@ -544,7 +546,7 @@ class OfficeDocumentPreviewTest extends TestCase
             ->get(route('verifications.show', $submission))
             ->assertOk()
             ->assertDontSee('Buka Tab Baru')
-            ->assertSee('Download Original')
+            ->assertSee('Unduh Dokumen Asli')
             ->assertDontSee('Preview Office belum tersedia')
             ->assertDontSee('Converter belum diaktifkan.')
             ->assertSee(route('verifications.documents.download', [$submission, $document]), false);

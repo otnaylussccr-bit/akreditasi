@@ -5,8 +5,8 @@
     class="password-visibility-toggle"
     x-on:click="visible = ! visible"
     x-bind:aria-pressed="visible"
-    x-bind:aria-label="visible ? @js('Sembunyikan '.$label) : @js('Tampilkan '.$label)"
-    aria-label="Tampilkan {{ $label }}"
+    x-bind:aria-label="visible ? @js(__('common.password.hide', ['label' => $label])) : @js(__('common.password.show', ['label' => $label]))"
+    aria-label="{{ __('common.password.show', ['label' => $label]) }}"
     aria-pressed="false"
 >
     <svg x-show="! visible" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

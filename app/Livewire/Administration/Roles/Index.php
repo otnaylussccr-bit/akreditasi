@@ -2,18 +2,17 @@
 
 namespace App\Livewire\Administration\Roles;
 
+use App\Livewire\Component;
 use App\Services\UserAccessManagementService;
+use App\Support\LocalizedLabel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
-use Livewire\Component;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 #[Layout('components.layouts.app')]
-#[Title('Manajemen Role | APU Accreditation')]
 class Index extends Component
 {
     public ?int $selectedRoleId = null;
@@ -50,7 +49,9 @@ class Index extends Component
             ],
         ]);
         $updated = $access->syncRolePermissions(Auth::user(), $role, $this->permissionIds);
-        $this->successMessage = "Permission role {$updated->name} berhasil diperbarui.";
+        $this->successMessage = __('administration.roles.notifications.updated', [
+            'role' => LocalizedLabel::role($updated->name),
+        ]);
         $this->permissionIds = $updated->permissions->pluck('id')->all();
     }
 
@@ -73,6 +74,20 @@ class Index extends Component
             'selectedRole' => $this->selectedRoleId
                 ? Role::query()->find($this->selectedRoleId)
                 : null,
-        ]);
+        ])->title(__('administration.roles.meta_title'));
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'permissionIds.array' => __('administration.validation.array'),
+            'permissionIds.*.integer' => __('administration.validation.integer'),
+            'permissionIds.*.exists' => __('administration.validation.exists'),
+        ];
+    }
+
+    protected function validationAttributes(): array
+    {
+        return __('administration.roles.validation.attributes');
     }
 }

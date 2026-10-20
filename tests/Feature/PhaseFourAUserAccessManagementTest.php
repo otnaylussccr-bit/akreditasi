@@ -17,8 +17,10 @@ use App\Services\UserAccessManagementService;
 use App\Support\PasswordPolicy;
 use Database\Seeders\AccreditationRolePermissionSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -28,6 +30,8 @@ use Tests\TestCase;
 
 class PhaseFourAUserAccessManagementTest extends TestCase
 {
+    protected string $testLocale = 'id';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -46,10 +50,12 @@ class PhaseFourAUserAccessManagementTest extends TestCase
             ->assertSee('Email atau password tidak valid.');
         $this->assertGuest();
 
-        $this->actingAs($user)
+        $this->withSession([config('localization.session_key') => 'id'])
+            ->actingAs($user)
             ->get(route('dashboard'))
             ->assertRedirect(route('login'))
-            ->assertSessionHas('status');
+            ->assertSessionHas('status', __('auth.inactive'))
+            ->assertSessionHas(config('localization.session_key'), 'id');
         $this->assertGuest();
     }
 
@@ -89,33 +95,106 @@ class PhaseFourAUserAccessManagementTest extends TestCase
         ], ['password' => PasswordPolicy::rules()])->fails());
     }
 
+    public function test_password_form_is_server_empty_and_uses_standard_autofill_metadata(): void
+    {
+        $this->get(route('profile.password'))->assertRedirect(route('login'));
+
+        $user = $this->userWithRole('Viewer');
+        $this->actingAs($user);
+
+        $component = Livewire::test(ChangePassword::class)
+            ->assertSet('currentPassword', '')
+            ->assertSet('newPassword', '')
+            ->assertSet('newPassword_confirmation', '')
+            ->assertSeeHtml('name="username"')
+            ->assertSeeHtml('autocomplete="username"')
+            ->assertSeeHtml('autocomplete="current-password"')
+            ->assertSeeHtml('autocomplete="new-password"');
+
+        $html = $component->html();
+
+        foreach (['current-password', 'new-password', 'new-password-confirmation'] as $id) {
+            $this->assertDoesNotMatchRegularExpression('/<input(?=[^>]*\bid="'.preg_quote($id, '/').'"\b)[^>]*\bvalue\s*=/i', $html);
+        }
+
+        $this->assertStringNotContainsString($user->password, $html);
+        $this->assertStringNotContainsString('ValidPassword!123', $html);
+        $middleware = Route::getRoutes()->getByName('profile.password')->gatherMiddleware();
+        $this->assertContains('auth', $middleware);
+        $this->assertContains('active', $middleware);
+    }
+
     public function test_authenticated_user_can_change_password_and_other_sessions_are_revoked(): void
     {
         $user = $this->userWithRole('Viewer');
+        $oldHash = $user->password;
         $this->actingAs($user);
         $currentSessionId = session()->getId();
         $this->sessionRecord($currentSessionId, $user);
         $this->sessionRecord('other-session', $user);
+        config([
+            'session.driver' => 'database',
+            'session.connection' => config('database.default'),
+        ]);
 
-        Livewire::test(ChangePassword::class)
+        $component = Livewire::test(ChangePassword::class)
             ->set('currentPassword', 'ValidPassword!123')
             ->set('newPassword', 'abc12345')
             ->set('newPassword_confirmation', 'abc12345')
             ->call('updatePassword')
             ->assertHasNoErrors()
-            ->assertSee('Password berhasil diperbarui');
+            ->assertSee('Password berhasil diperbarui')
+            ->assertSet('currentPassword', '')
+            ->assertSet('newPassword', '')
+            ->assertSet('newPassword_confirmation', '');
 
         $this->assertAuthenticatedAs($user);
-        $this->assertTrue(Hash::check('abc12345', $user->fresh()->password));
-        $this->assertDatabaseHas('sessions', ['id' => $currentSessionId, 'user_id' => $user->id]);
+        $this->assertNotSame($currentSessionId, session()->getId());
+        $freshUser = $user->fresh();
+        $this->assertFalse(Hash::check('ValidPassword!123', $freshUser->password));
+        $this->assertTrue(Hash::check('abc12345', $freshUser->password));
+        $this->assertNotSame('abc12345', $freshUser->password);
+        $this->assertDatabaseMissing('sessions', ['id' => $currentSessionId]);
         $this->assertDatabaseMissing('sessions', ['id' => 'other-session']);
         $audit = AdministrativeAuditLog::query()->sole();
         $this->assertSame('user.password_changed', $audit->event);
         $this->assertSame(['other_access_revoked' => true], $audit->new_values);
-        $this->assertStringNotContainsString('password', strtolower(json_encode([
+        $auditPayload = json_encode([
             $audit->old_values,
             $audit->new_values,
-        ])));
+        ]);
+        $this->assertStringNotContainsString('password', strtolower($auditPayload));
+
+        foreach (['ValidPassword!123', 'abc12345', $oldHash, $freshUser->password] as $secret) {
+            $this->assertStringNotContainsString($secret, $auditPayload);
+        }
+
+        $component
+            ->set('currentPassword', 'WrongPassword!123')
+            ->set('newPassword', 'next12345')
+            ->set('newPassword_confirmation', 'next12345')
+            ->call('updatePassword')
+            ->assertHasErrors(['currentPassword'])
+            ->assertSet('successMessage', null)
+            ->assertSet('currentPassword', '')
+            ->assertSet('newPassword', '')
+            ->assertSet('newPassword_confirmation', '');
+
+        Auth::logout();
+        Livewire::test(Login::class)
+            ->set('email', $user->email)
+            ->set('password', 'ValidPassword!123')
+            ->call('login')
+            ->assertHasErrors(['email']);
+        $this->assertGuest();
+
+        Livewire::test(Login::class)
+            ->set('email', $user->email)
+            ->set('password', 'abc12345')
+            ->call('login')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('dashboard'));
+        $this->assertAuthenticatedAs($user);
     }
 
     public function test_password_change_rejects_wrong_weak_unconfirmed_and_unchanged_passwords(): void
@@ -123,36 +202,101 @@ class PhaseFourAUserAccessManagementTest extends TestCase
         $user = $this->userWithRole('PIC Kriteria');
         $this->actingAs($user);
 
-        Livewire::test(ChangePassword::class)
+        $wrongCurrent = Livewire::test(ChangePassword::class)
             ->set('currentPassword', 'WrongPassword!123')
             ->set('newPassword', 'abc12345')
             ->set('newPassword_confirmation', 'abc12345')
             ->call('updatePassword')
-            ->assertHasErrors(['currentPassword']);
+            ->assertHasErrors(['currentPassword'])
+            ->assertSet('currentPassword', '')
+            ->assertSet('newPassword', '')
+            ->assertSet('newPassword_confirmation', '');
 
         Livewire::test(ChangePassword::class)
             ->set('currentPassword', 'ValidPassword!123')
             ->set('newPassword', 'abc1234')
             ->set('newPassword_confirmation', 'abc1234')
             ->call('updatePassword')
-            ->assertHasErrors(['newPassword']);
+            ->assertHasErrors(['newPassword'])
+            ->assertSet('currentPassword', '')
+            ->assertSet('newPassword', '')
+            ->assertSet('newPassword_confirmation', '');
 
         Livewire::test(ChangePassword::class)
             ->set('currentPassword', 'ValidPassword!123')
             ->set('newPassword', 'abc12345')
             ->set('newPassword_confirmation', 'abc12346')
             ->call('updatePassword')
-            ->assertHasErrors(['newPassword']);
+            ->assertHasErrors(['newPassword', 'newPassword_confirmation'])
+            ->assertSet('currentPassword', '')
+            ->assertSet('newPassword', '')
+            ->assertSet('newPassword_confirmation', '');
 
         Livewire::test(ChangePassword::class)
             ->set('currentPassword', 'ValidPassword!123')
             ->set('newPassword', 'ValidPassword!123')
             ->set('newPassword_confirmation', 'ValidPassword!123')
             ->call('updatePassword')
-            ->assertHasErrors(['newPassword']);
+            ->assertHasErrors(['newPassword'])
+            ->assertSet('currentPassword', '')
+            ->assertSet('newPassword', '')
+            ->assertSet('newPassword_confirmation', '');
 
         $this->assertTrue(Hash::check('ValidPassword!123', $user->fresh()->password));
         $this->assertDatabaseCount('administrative_audit_logs', 0);
+        $this->assertStringNotContainsString('WrongPassword!123', $wrongCurrent->html());
+        $this->assertStringNotContainsString($user->password, $wrongCurrent->html());
+    }
+
+    public function test_password_change_is_rate_limited_without_retaining_submitted_secrets(): void
+    {
+        $user = $this->userWithRole('Reviewer');
+        $this->actingAs($user);
+        $component = Livewire::test(ChangePassword::class);
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $component
+                ->set('currentPassword', 'WrongPassword!123')
+                ->set('newPassword', 'abc12345')
+                ->set('newPassword_confirmation', 'abc12345')
+                ->call('updatePassword')
+                ->assertHasErrors(['currentPassword'])
+                ->assertSet('currentPassword', '')
+                ->assertSet('newPassword', '')
+                ->assertSet('newPassword_confirmation', '');
+        }
+
+        $component
+            ->set('currentPassword', 'WrongPassword!123')
+            ->set('newPassword', 'abc12345')
+            ->set('newPassword_confirmation', 'abc12345')
+            ->call('updatePassword')
+            ->assertHasErrors(['currentPassword'])
+            ->assertSee('Terlalu banyak percobaan')
+            ->assertSet('currentPassword', '')
+            ->assertSet('newPassword', '')
+            ->assertSet('newPassword_confirmation', '');
+
+        $this->assertTrue(Hash::check('ValidPassword!123', $user->fresh()->password));
+        $this->assertDatabaseCount('administrative_audit_logs', 0);
+        $this->assertStringNotContainsString('WrongPassword!123', $component->html());
+    }
+
+    public function test_password_change_service_can_only_update_the_authenticated_account(): void
+    {
+        $user = $this->userWithRole('Viewer');
+        $otherUser = $this->userWithRole('PIC Kriteria');
+        $otherHash = $otherUser->password;
+        $this->actingAs($user);
+
+        app(UserAccessManagementService::class)->changeOwnPassword(
+            'ValidPassword!123',
+            'abc12345',
+            session()->getId(),
+        );
+
+        $this->assertTrue(Hash::check('abc12345', $user->fresh()->password));
+        $this->assertSame($otherHash, $otherUser->fresh()->password);
     }
 
     public function test_only_active_super_admin_with_permission_can_open_management_pages(): void
@@ -195,6 +339,8 @@ class PhaseFourAUserAccessManagementTest extends TestCase
             ->set('roleIds', [$viewerRole->id])
             ->call('saveUser')
             ->assertHasNoErrors()
+            ->assertSet('password', '')
+            ->assertSet('password_confirmation', '')
             ->assertSee('berhasil dibuat');
 
         $created = User::query()->where('email', 'new.user@example.test')->sole();
@@ -227,7 +373,7 @@ class PhaseFourAUserAccessManagementTest extends TestCase
             ->set('roleIds', [$picRole->id, $viewerRole->id])
             ->call('saveRoles')
             ->assertHasNoErrors()
-            ->assertSee('tanpa mengubah assignment project');
+            ->assertSee('tanpa mengubah scope Phase 1 atau histori assignment LED');
 
         $this->assertTrue($pic->fresh()->hasAllRoles(['PIC Kriteria', 'Viewer']));
         $this->assertDatabaseHas('accreditation_criterion_assignments', [
@@ -307,6 +453,8 @@ class PhaseFourAUserAccessManagementTest extends TestCase
             ->set('resetPassword_confirmation', 'abc12345')
             ->call('performPasswordReset')
             ->assertHasNoErrors()
+            ->assertSet('resetPassword', '')
+            ->assertSet('resetPassword_confirmation', '')
             ->assertSee('berhasil direset');
 
         $this->assertTrue(Hash::check('abc12345', $target->fresh()->password));
@@ -314,6 +462,60 @@ class PhaseFourAUserAccessManagementTest extends TestCase
         $audit = AdministrativeAuditLog::query()->where('event', 'user.password_reset')->sole();
         $this->assertSame(['authenticated_access_revoked' => true], $audit->new_values);
         $this->assertStringNotContainsString('abc12345', json_encode($audit->getAttributes()));
+    }
+
+    public function test_admin_user_forms_clear_password_secrets_after_validation_failures(): void
+    {
+        $admin = $this->userWithRole('Super Admin');
+        $target = $this->userWithRole('Viewer');
+        $viewerRole = Role::findByName('Viewer', 'web');
+        $this->actingAs($admin);
+
+        Livewire::test(UserManagementIndex::class)
+            ->call('startCreate')
+            ->set('name', 'Nama Tetap Tersimpan')
+            ->set('email', 'invalid-email')
+            ->set('password', 'abc12345')
+            ->set('password_confirmation', 'abc12345')
+            ->set('roleIds', [$viewerRole->id])
+            ->call('saveUser')
+            ->assertHasErrors(['email'])
+            ->assertSet('name', 'Nama Tetap Tersimpan')
+            ->assertSet('email', 'invalid-email')
+            ->assertSet('roleIds', [$viewerRole->id])
+            ->assertSet('editorOpen', true)
+            ->assertSet('password', '')
+            ->assertSet('password_confirmation', '');
+
+        Livewire::test(UserManagementIndex::class)
+            ->call('startPasswordReset', $target->id)
+            ->set('resetPassword', 'short1')
+            ->set('resetPassword_confirmation', 'short1')
+            ->call('performPasswordReset')
+            ->assertHasErrors(['resetPassword'])
+            ->assertSet('resettingPasswordUserId', $target->id)
+            ->assertSet('resetPassword', '')
+            ->assertSet('resetPassword_confirmation', '');
+    }
+
+    public function test_admin_password_reset_clears_secrets_after_domain_validation_failure(): void
+    {
+        $admin = $this->userWithRole('Super Admin');
+        $target = $this->userWithRole('Viewer');
+        $this->actingAs($admin);
+
+        Livewire::test(UserManagementIndex::class)
+            ->call('startPasswordReset', $target->id)
+            ->set('resetPassword', 'ValidPassword!123')
+            ->set('resetPassword_confirmation', 'ValidPassword!123')
+            ->call('performPasswordReset')
+            ->assertHasErrors(['resetPassword'])
+            ->assertSet('resettingPasswordUserId', $target->id)
+            ->assertSet('resetPassword', '')
+            ->assertSet('resetPassword_confirmation', '');
+
+        $this->assertTrue(Hash::check('ValidPassword!123', $target->fresh()->password));
+        $this->assertDatabaseMissing('administrative_audit_logs', ['event' => 'user.password_reset']);
     }
 
     public function test_role_management_protects_super_admin_and_reserved_permissions(): void

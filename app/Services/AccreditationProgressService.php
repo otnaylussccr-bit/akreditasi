@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AccreditationDocumentRequirement;
 use App\Models\AccreditationItem;
 use App\Models\AccreditationProject;
+use App\Support\LocalizedLabel;
 use Illuminate\Support\Collection;
 
 class AccreditationProgressService
@@ -87,14 +88,9 @@ class AccreditationProgressService
 
     public function statusLabels(): array
     {
-        return [
-            'verified' => 'Terverifikasi',
-            'pending_review' => 'Menunggu Verifikasi',
-            'need_revision' => 'Perlu Revisi',
-            'draft' => 'Draft',
-            'in_progress' => 'Dalam Proses',
-            'not_started' => 'Belum Mulai',
-        ];
+        return collect(self::AGGREGATE_STATUSES)
+            ->mapWithKeys(fn (string $status): array => [$status => LocalizedLabel::status($status)])
+            ->all();
     }
 
     private function isHeader(AccreditationItem $item, AccreditationProject $project): bool

@@ -25,6 +25,8 @@ use Tests\TestCase;
 
 class EvidenceRepositoryTest extends TestCase
 {
+    protected string $testLocale = 'id';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -90,16 +92,26 @@ class EvidenceRepositoryTest extends TestCase
             ->assertDontSee('LAMPIRAN-KOREKSI-RAHASIA.pdf')
             ->call('selectDocument', $first->id)
             ->assertSee('Status rincian saat ini')
-            ->assertSee('Snapshot r1: Terverifikasi')
-            ->assertSee('Snapshot r2: Perlu Revisi')
             ->assertSee('Satu file original terikat pada satu rincian');
-
         $documents = $component->viewData('documents')->getCollection();
+        $versions = $component->viewData('versions')->keyBy('id');
         $this->assertCount(2, $documents);
         $this->assertCount(2, $documents->pluck('id')->unique());
         $this->assertSame($first->id, $component->viewData('selectedDocument')->id);
         $this->assertSame('need_revision', $component->viewData('selectedDocument')->requirement->workflow_status);
         $this->assertSame([$second->id, $first->id], $component->viewData('versions')->pluck('id')->all());
+        $this->assertSame(
+            [$secondSubmission->id, $firstSubmission->id],
+            $versions[$first->id]->reviewSubmissions->pluck('id')->all(),
+        );
+        $this->assertSame(
+            ['need_revision', 'verified'],
+            $versions[$first->id]->reviewSubmissions->pluck('status')->all(),
+        );
+        $this->assertSame(
+            [$secondSubmission->id],
+            $versions[$second->id]->reviewSubmissions->pluck('id')->all(),
+        );
         $this->assertSame([$firstSubmission->id, $secondSubmission->id], $first->reviewSubmissions()->orderBy('accreditation_review_submissions.id')->pluck('accreditation_review_submissions.id')->all());
 
         $this->assertSame($before['requirement_status'], $requirement->fresh()->workflow_status);
@@ -131,22 +143,22 @@ class EvidenceRepositoryTest extends TestCase
         $this->membership($project, $viewer, 'viewer');
 
         $this->actingAs($pic);
-        $picRepository = Livewire::test(Index::class)->assertSee('FILE-A.pdf')->assertDontSee('FILE-B.pdf')->assertDontSee('FILE-C.pdf')->assertSee('Upload Dokumen');
+        $picRepository = Livewire::test(Index::class)->assertSee('FILE-A.pdf')->assertDontSee('FILE-B.pdf')->assertDontSee('FILE-C.pdf')->assertSee('Unggah Dokumen');
         $this->assertSame([$documentA->id], $picRepository->viewData('documents')->pluck('id')->all());
 
         $this->actingAs($reviewer);
-        $reviewerRepository = Livewire::test(Index::class)->assertSee('FILE-B.pdf')->assertDontSee('FILE-A.pdf')->assertDontSee('FILE-C.pdf')->assertDontSee('Upload Dokumen');
+        $reviewerRepository = Livewire::test(Index::class)->assertSee('FILE-B.pdf')->assertDontSee('FILE-A.pdf')->assertDontSee('FILE-C.pdf')->assertDontSee('Unggah Dokumen');
         $this->assertSame([$documentB->id], $reviewerRepository->viewData('documents')->pluck('id')->all());
 
         $this->actingAs($manager);
-        $managerRepository = Livewire::test(Index::class)->assertSee('FILE-A.pdf')->assertSee('FILE-B.pdf')->assertDontSee('FILE-C.pdf')->assertDontSee('Upload Dokumen');
+        $managerRepository = Livewire::test(Index::class)->assertSee('FILE-A.pdf')->assertSee('FILE-B.pdf')->assertDontSee('FILE-C.pdf')->assertDontSee('Unggah Dokumen');
         $this->assertEqualsCanonicalizing([$documentA->id, $documentB->id], $managerRepository->viewData('documents')->pluck('id')->all());
 
         $this->actingAs($viewer);
         Livewire::test(Index::class)->assertForbidden();
 
         $this->actingAs($admin);
-        $adminRepository = Livewire::withQueryParams(['proyek' => $outsideProject->id])->test(Index::class)->assertSee('FILE-C.pdf')->assertSee('Upload Dokumen');
+        $adminRepository = Livewire::withQueryParams(['proyek' => $outsideProject->id])->test(Index::class)->assertSee('FILE-C.pdf')->assertSee('Unggah Dokumen');
         $this->assertSame([$documentC->id], $adminRepository->viewData('documents')->pluck('id')->all());
 
         $this->actingAs($pic);

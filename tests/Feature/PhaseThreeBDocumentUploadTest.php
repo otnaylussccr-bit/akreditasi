@@ -31,6 +31,8 @@ use Tests\TestCase;
 
 class PhaseThreeBDocumentUploadTest extends TestCase
 {
+    protected string $testLocale = 'id';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -108,7 +110,7 @@ class PhaseThreeBDocumentUploadTest extends TestCase
             ->set('files', [$this->pdf('wib-upload.pdf')])
             ->call('saveDocuments')
             ->assertHasNoErrors()
-            ->assertSee('16 Oct 2026, 16:00 WIB');
+            ->assertSee('16 Okt 2026, 16:00 WIB');
 
         $document = AccreditationDocument::sole();
         $activity = AccreditationActivityLog::sole();
@@ -697,10 +699,10 @@ class PhaseThreeBDocumentUploadTest extends TestCase
 
         $this->get(route('documents.upload', $requirement))
             ->assertOk()
-            ->assertSee('Detail Butir & Upload Dokumen', false)
+            ->assertSee('Detail Butir & Upload Dokumen')
             ->assertSee('Input Dokumen')
             ->assertSee('Follow Up LED')
-            ->assertSee($project->final_deadline->format('d M Y'))
+            ->assertSee('20 Okt 2027')
             ->assertSee('15 Mar 2026')
             ->assertSee($criterion->name)
             ->assertSee($item->title)

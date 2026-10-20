@@ -4,6 +4,8 @@ use App\Http\Controllers\AccreditationDocumentAccessController;
 use App\Http\Controllers\AccreditationOfficePreviewController;
 use App\Http\Controllers\AccreditationReviewAttachmentAccessController;
 use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\LocaleController;
+use App\Livewire\Administration\LedSetup\Index as LedSetupIndex;
 use App\Livewire\Administration\Roles\Index as RoleManagementIndex;
 use App\Livewire\Administration\Users\Index as UserManagementIndex;
 use App\Livewire\Auth\Login;
@@ -13,12 +15,15 @@ use App\Livewire\Documents\Upload as DocumentUpload;
 use App\Livewire\Documents\VerificationIndex;
 use App\Livewire\Documents\VerificationShow;
 use App\Livewire\FollowUpLed\Index as FollowUpLedIndex;
+use App\Livewire\LedAssessment\Dashboard as LedAssessmentDashboard;
+use App\Livewire\LedAssessment\Index as LedAssessmentIndex;
 use App\Livewire\Profile\ChangePassword;
 use App\Livewire\Repository\Index as RepositoryIndex;
 use App\Livewire\TeamActivity\Index as TeamActivityIndex;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
+Route::post('/locale', LocaleController::class)->name('locale.update');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', Login::class)->name('login');
@@ -26,11 +31,14 @@ Route::middleware('guest')->group(function (): void {
 
 Route::middleware(['auth', 'active'])->group(function (): void {
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
+    Route::get('/dashboard-penilaian-led', LedAssessmentDashboard::class)->name('led-assessment.dashboard');
     Route::get('/profil/password', ChangePassword::class)->name('profile.password');
     Route::post('/logout', LogoutController::class)->name('logout');
 
     Route::middleware('operational')->group(function (): void {
         Route::get('/follow-up-led', FollowUpLedIndex::class)->name('follow-up-led.index');
+        Route::get('/penilaian-led', LedAssessmentIndex::class)->name('led-assessment.index');
+        Route::get('/pengaturan/operasional-led', LedSetupIndex::class)->middleware('can:project.manage')->name('administration.led-setup.index');
         Route::get('/input-dokumen', DocumentIndex::class)->name('documents.index');
         Route::get('/repository-bukti', RepositoryIndex::class)->name('repository.index');
         Route::get('/aktivitas-tim', TeamActivityIndex::class)->name('team-activity.index');

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AccreditationDocument extends Model
 {
@@ -37,5 +38,10 @@ class AccreditationDocument extends Model
             'document_id',
             'submission_id',
         );
+    }
+
+    public function ledAssessmentEvidence(): HasMany
+    {
+        return $this->hasMany(AccreditationLedAssessmentEvidence::class, 'document_id');
     }
 }

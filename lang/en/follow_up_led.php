@@ -1,0 +1,90 @@
+<?php
+
+return [
+    'meta_title' => 'LED Follow-Up | APU Accreditation',
+    'heading' => [
+        'eyebrow' => 'Accreditation Item Monitoring',
+        'title' => 'LED Follow-Up',
+        'work_summary' => '{1} :count LED follow-up task|[0,*] :count LED follow-up tasks',
+        'read_only' => 'Read-only',
+        'final_deadline' => 'Final Deadline',
+        'total_work' => 'Total Tasks',
+        'structure_count' => '{1} :count structure|[0,*] :count structures',
+        'header_count' => '{1} :count LED header|[0,*] :count LED headers',
+        'completed' => 'Completed',
+        'completion_summary' => '{1} :percent% of :count task|[0,*] :percent% of :count tasks',
+    ],
+    'empty_criteria' => [
+        'title' => 'No accessible criteria',
+        'help' => 'No active project membership or criterion assignment is available for this account.',
+    ],
+    'filters' => [
+        'aria_label' => 'LED Follow-Up filters',
+        'all_statuses' => 'All Statuses',
+        'source_pic' => 'Excel Source PIC',
+        'all_source_pics' => 'All PICs',
+        'search_placeholder' => 'Search items or requirements...',
+        'reset' => 'Reset Filters',
+    ],
+    'statuses' => [
+        'header' => 'LED Header',
+    ],
+    'list' => [
+        'help' => 'Select an item to view complete document details without leaving the page.',
+        'displayed' => '{1} :visible of :total item shown|[0,*] :visible of :total items shown',
+    ],
+    'item' => [
+        'header_description' => 'Self-Evaluation Report opening structure',
+        'requirement_count' => '{1} :count document requirement|[0,*] :count document requirements',
+        'needs_revision' => 'A requirement needs revision',
+        'detail_open' => 'Details Open',
+        'view_detail' => 'View Details',
+        'source_pic' => 'Source PIC',
+        'not_listed' => 'Not listed',
+        'internal_deadline' => 'Internal Deadline',
+        'required_progress' => 'Required Progress',
+        'progress_aria' => ':percent percent progress',
+    ],
+    'header_notice' => 'LED headers do not require uploads, verification, or requirement progress.',
+    'expanded' => [
+        'title' => 'Operational Document Requirements',
+        'help' => 'Statuses and files are displayed directly from each requirement.',
+        'requirement_count' => '{1} :count requirement|[0,*] :count requirements',
+    ],
+    'table' => [
+        'number' => 'No.',
+        'requirement' => 'Document Requirement',
+        'nature' => 'Nature',
+        'latest' => 'Latest: :name',
+    ],
+    'nature' => [
+        'required' => 'Required',
+        'optional' => 'Optional',
+    ],
+    'states' => [
+        'locked' => 'Locked',
+        'read_only' => 'Read-only',
+        'active_aria' => 'Active item',
+    ],
+    'empty_requirements' => 'This item has no document requirements yet.',
+    'empty_items' => [
+        'title' => 'No matching tasks',
+        'help' => 'Change or reset the filter combination for the active criterion.',
+    ],
+    'pagination' => [
+        'summary' => '{1} Showing :first-:last of :total item|[0,*] Showing :first-:last of :total items',
+    ],
+    'detail' => [
+        'quick_summary' => 'Item Quick Summary',
+        'action_required' => 'Action required',
+        'revision_help' => 'One or more required requirements were returned for revision.',
+        'header_title' => 'Self-Evaluation Report Header',
+        'header_help' => 'This item does not require uploads, verification, or requirement progress.',
+        'deadline' => 'Deadline',
+        'verified_progress' => 'Verified Progress',
+        'description' => 'Item Description / Summary',
+        'requirement_summary' => 'Requirement Summary',
+        'actual_status' => 'Current status',
+    ],
+    'file_count' => '{1} :count file|[0,*] :count files',
+];

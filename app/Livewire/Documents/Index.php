@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Documents;
 
+use App\Livewire\Component;
 use App\Models\AccreditationItem;
 use App\Models\AccreditationProject;
 use App\Services\AccreditationAuthorizationService;
@@ -10,12 +11,9 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
-use Livewire\Component;
 
 #[Layout('components.layouts.app')]
-#[Title('Input Dokumen | APU Accreditation')]
 class Index extends Component
 {
     private const BIOTECH_PROJECT_CODE = 'APU-BIOTEK-2026';
@@ -112,14 +110,8 @@ class Index extends Component
             'criteria' => $criteria,
             'activeCriterion' => $activeCriterion,
             'items' => $items,
-            'statusLabels' => [
-                'not_started' => 'Belum Mulai',
-                'draft' => 'Draft',
-                'pending_review' => 'Menunggu Verifikasi',
-                'need_revision' => 'Perlu Revisi',
-                'verified' => 'Terverifikasi',
-            ],
-        ]);
+            'statusLabels' => __('documents.status'),
+        ])->title(__('documents.meta.index_title'));
     }
 
     private function authorizedProjects(AccreditationAuthorizationService $authorization): Collection

@@ -30,7 +30,7 @@ class AccreditationDocumentUploadService
         $requirement->loadMissing('item.criterion.project.studyProgram');
 
         if (Auth::id() !== $user->id || ! $this->authorization->canUploadRequirement($user, $requirement)) {
-            throw new AuthorizationException('Anda tidak berhak mengunggah dokumen untuk rincian ini.');
+            throw new AuthorizationException(__('documents.errors.upload_unauthorized'));
         }
 
         $this->validateFiles($files);
@@ -49,7 +49,7 @@ class AccreditationDocumentUploadService
                     ->findOrFail($requirement->id);
 
                 if (! $this->authorization->canUploadRequirement($user, $target)) {
-                    throw new AuthorizationException('Anda tidak berhak mengunggah dokumen untuk rincian ini.');
+                    throw new AuthorizationException(__('documents.errors.upload_unauthorized'));
                 }
 
                 $revision = $target->workflow_status === 'need_revision'
@@ -65,7 +65,7 @@ class AccreditationDocumentUploadService
                     $stream = fopen($file->getRealPath(), 'rb');
 
                     if ($stream === false) {
-                        throw new RuntimeException('File sementara tidak dapat dibaca.');
+                        throw new RuntimeException(__('documents.errors.temporary_file_unreadable'));
                     }
 
                     try {
@@ -75,13 +75,13 @@ class AccreditationDocumentUploadService
                     }
 
                     if (! $written) {
-                        throw new RuntimeException('File gagal disimpan ke penyimpanan privat.');
+                        throw new RuntimeException(__('documents.errors.private_storage_write_failed'));
                     }
 
                     $storedPaths[] = $path;
 
                     if (! Storage::disk('local')->setVisibility($path, 'private')) {
-                        throw new RuntimeException('Hak akses privat file gagal diterapkan.');
+                        throw new RuntimeException(__('documents.errors.private_visibility_failed'));
                     }
 
                     $document = AccreditationDocument::create([
@@ -135,11 +135,11 @@ class AccreditationDocumentUploadService
                 try {
                     if (! Storage::disk('local')->delete($path)
                         && Storage::disk('local')->exists($path)) {
-                        throw new RuntimeException('File rollback tidak dapat dihapus.');
+                        throw new RuntimeException(__('documents.errors.rollback_delete_failed'));
                     }
                 } catch (Throwable $cleanupException) {
                     throw new RuntimeException(
-                        'Upload gagal dan cleanup penyimpanan privat juga gagal.',
+                        __('documents.errors.upload_cleanup_failed'),
                         previous: $exception,
                     );
                 }
@@ -158,10 +158,10 @@ class AccreditationDocumentUploadService
                 'files.*' => ['bail', 'required', 'file', 'max:51200', new SecureAccreditationDocument],
             ],
             [
-                'files.required' => 'Pilih minimal satu file untuk diunggah.',
-                'files.max' => 'Maksimal 10 file dalam satu batch upload.',
-                'files.*.file' => 'Setiap pilihan harus berupa file yang valid.',
-                'files.*.max' => 'Ukuran setiap file maksimal 50 MB.',
+                'files.required' => __('documents.validation.files_required'),
+                'files.max' => __('documents.validation.files_max'),
+                'files.*.file' => __('documents.validation.file_invalid'),
+                'files.*.max' => __('documents.validation.file_too_large'),
             ],
         )->validate();
     }
@@ -171,7 +171,7 @@ class AccreditationDocumentUploadService
         $stream = Storage::disk('local')->readStream($path);
 
         if ($stream === false) {
-            throw new RuntimeException('File tersimpan tidak dapat diverifikasi.');
+            throw new RuntimeException(__('documents.errors.stored_file_unverifiable'));
         }
 
         try {

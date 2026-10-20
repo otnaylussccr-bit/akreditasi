@@ -58,11 +58,11 @@ class AccreditationReviewAttachmentAccessController extends Controller
     ): StreamedResponse {
         /** @var FilesystemAdapter $disk */
         $disk = Storage::disk('local');
-        abort_unless($disk->exists($attachment->storage_path), Response::HTTP_NOT_FOUND, 'Lampiran tidak tersedia.');
+        abort_unless($disk->exists($attachment->storage_path), Response::HTTP_NOT_FOUND, __('verification.errors.attachment_unavailable'));
         abort_unless(
             hash_equals($attachment->sha256, $this->storedFileHash($disk, $attachment->storage_path)),
             Response::HTTP_NOT_FOUND,
-            'Lampiran tidak tersedia.',
+            __('verification.errors.attachment_unavailable'),
         );
 
         return $disk->response(
@@ -83,7 +83,7 @@ class AccreditationReviewAttachmentAccessController extends Controller
     private function storedFileHash(FilesystemAdapter $disk, string $path): string
     {
         $stream = $disk->readStream($path);
-        abort_if($stream === false, Response::HTTP_NOT_FOUND, 'Lampiran tidak tersedia.');
+        abort_if($stream === false, Response::HTTP_NOT_FOUND, __('verification.errors.attachment_unavailable'));
 
         try {
             $context = hash_init('sha256');

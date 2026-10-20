@@ -20,6 +20,8 @@ use Tests\TestCase;
 
 class DocumentIndexTest extends TestCase
 {
+    protected string $testLocale = 'id';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -123,7 +125,7 @@ class DocumentIndexTest extends TestCase
 
         Livewire::test(Index::class)
             ->assertSee($requirement->title)
-            ->assertSee('Read-only')
+            ->assertSee('Baca-saja')
             ->assertDontSee(route('documents.upload', $requirement), false);
     }
 

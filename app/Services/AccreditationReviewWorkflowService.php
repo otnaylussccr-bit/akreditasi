@@ -47,14 +47,14 @@ class AccreditationReviewWorkflowService
     public function submit(AccreditationDocumentRequirement $requirement, User $user): AccreditationReviewSubmission
     {
         if (Auth::id() !== $user->id) {
-            throw new AuthorizationException('Anda tidak berhak mengirim rincian ini untuk verifikasi.');
+            throw new AuthorizationException(__('verification.errors.unauthorized_submit'));
         }
 
         $requirement->loadMissing('item.criterion.project');
         Gate::forUser($user)->authorize('submit', $requirement->item->criterion);
 
         return DB::transaction(function () use ($requirement, $user): AccreditationReviewSubmission {
-            $this->lifecycle->lockAndAssertWorkflowMutable(
+            $this->lockAndAssertWorkflowMutable(
                 $requirement->item->criterion->project_id,
             );
             $target = AccreditationDocumentRequirement::query()
@@ -66,13 +66,13 @@ class AccreditationReviewWorkflowService
 
             if (! in_array($target->workflow_status, ['draft', 'need_revision'], true)) {
                 throw ValidationException::withMessages([
-                    'submission' => 'Rincian hanya dapat dikirim dari status Draft atau Perlu Revisi.',
+                    'submission' => __('verification.errors.invalid_submit_status'),
                 ]);
             }
 
             if ($target->reviewSubmissions()->where('status', 'pending_review')->exists()) {
                 throw ValidationException::withMessages([
-                    'submission' => 'Rincian ini sudah menunggu verifikasi.',
+                    'submission' => __('verification.errors.already_pending'),
                 ]);
             }
 
@@ -84,7 +84,7 @@ class AccreditationReviewWorkflowService
 
             if ($documents->isEmpty()) {
                 throw ValidationException::withMessages([
-                    'submission' => 'Unggah minimal satu file aktif sebelum mengirim ke verifikator.',
+                    'submission' => __('verification.errors.active_file_required'),
                 ]);
             }
 
@@ -96,7 +96,7 @@ class AccreditationReviewWorkflowService
             if ($oldStatus === 'need_revision'
                 && ! $documents->contains('revision_number', $revision)) {
                 throw ValidationException::withMessages([
-                    'submission' => 'Unggah minimal satu file revisi baru sebelum mengirim ulang.',
+                    'submission' => __('verification.errors.new_revision_file_required'),
                 ]);
             }
 
@@ -105,13 +105,13 @@ class AccreditationReviewWorkflowService
                 $documents->pluck('uploaded_by')->push($user->id)->unique()->values()->all(),
             )) {
                 throw ValidationException::withMessages([
-                    'submission' => 'Belum ada Reviewer aktif dan independen pada kriteria ini.',
+                    'submission' => __('verification.errors.independent_reviewer_required'),
                 ]);
             }
 
             if ($documents->contains(fn ($document): bool => ! Storage::disk($document->disk)->exists($document->storage_path))) {
                 throw ValidationException::withMessages([
-                    'submission' => 'Salah satu file aktif tidak tersedia. Periksa dokumen sebelum mengirim.',
+                    'submission' => __('verification.errors.active_file_missing'),
                 ]);
             }
 
@@ -166,7 +166,7 @@ class AccreditationReviewWorkflowService
         array $correctionAttachments = [],
     ): AccreditationReviewSubmission {
         if (Auth::id() !== $reviewer->id) {
-            throw new AuthorizationException('Anda tidak berhak memutuskan submission ini.');
+            throw new AuthorizationException(__('verification.errors.unauthorized_decision'));
         }
 
         $candidate = AccreditationReviewSubmission::query()
@@ -192,7 +192,7 @@ class AccreditationReviewWorkflowService
                 $projectId,
                 &$storedPaths,
             ): AccreditationReviewSubmission {
-                $this->lifecycle->lockAndAssertWorkflowMutable($projectId);
+                $this->lockAndAssertWorkflowMutable($projectId);
                 $requirement = AccreditationDocumentRequirement::query()
                     ->with('item.criterion.project.studyProgram')
                     ->lockForUpdate()
@@ -212,7 +212,7 @@ class AccreditationReviewWorkflowService
                     || $requirement->workflow_status !== 'pending_review'
                     || $target->revision_number !== $requirement->current_review_revision) {
                     throw ValidationException::withMessages([
-                        'decision' => 'Submission ini sudah diproses atau bukan revisi aktif.',
+                        'decision' => __('verification.errors.submission_already_processed'),
                     ]);
                 }
 
@@ -252,7 +252,7 @@ class AccreditationReviewWorkflowService
                     $stream = fopen($file->getRealPath(), 'rb');
 
                     if ($stream === false) {
-                        throw new RuntimeException('Lampiran sementara tidak dapat dibaca.');
+                        throw new RuntimeException(__('verification.errors.temporary_attachment_unreadable'));
                     }
 
                     $storedPaths[] = $path;
@@ -263,11 +263,11 @@ class AccreditationReviewWorkflowService
                     }
 
                     if (! $written) {
-                        throw new RuntimeException('Lampiran koreksi gagal disimpan secara privat.');
+                        throw new RuntimeException(__('verification.errors.attachment_store_failed'));
                     }
 
                     if (! Storage::disk('local')->setVisibility($path, 'private')) {
-                        throw new RuntimeException('Hak akses privat lampiran gagal diterapkan.');
+                        throw new RuntimeException(__('verification.errors.attachment_privacy_failed'));
                     }
 
                     $attachments->push(AccreditationReviewAttachment::create([
@@ -325,7 +325,7 @@ class AccreditationReviewWorkflowService
 
             if ($cleanupFailed) {
                 throw new RuntimeException(
-                    'Keputusan gagal dan cleanup lampiran privat juga gagal.',
+                    __('verification.errors.decision_cleanup_failed'),
                     previous: $exception,
                 );
             }
@@ -352,15 +352,17 @@ class AccreditationReviewWorkflowService
                 'reviewNote' => [$decision === 'need_revision' ? 'required' : 'nullable', 'string', 'max:10000'],
             ],
             [
-                'decision.in' => 'Keputusan verifikasi tidak valid.',
-                'reviewNote.required' => 'Catatan perbaikan wajib diisi saat meminta revisi.',
-                'reviewNote.max' => 'Catatan verifikator maksimal 10.000 karakter.',
+                'decision.required' => __('verification.errors.decision_required'),
+                'decision.in' => __('verification.errors.invalid_decision'),
+                'reviewNote.required' => __('verification.errors.revision_note_required'),
+                'reviewNote.string' => __('verification.errors.revision_note_string'),
+                'reviewNote.max' => __('verification.errors.revision_note_max'),
             ],
         )->validate();
 
         if ($decision === 'verified' && $correctionAttachments !== []) {
             throw ValidationException::withMessages([
-                'correctionAttachments' => 'Lampiran koreksi hanya dapat disertakan saat meminta revisi.',
+                'correctionAttachments' => __('verification.errors.attachments_revision_only'),
             ]);
         }
 
@@ -380,18 +382,35 @@ class AccreditationReviewWorkflowService
                     'required',
                     'file',
                     'max:51200',
-                    new SecureAccreditationDocument,
+                    static function (string $attribute, mixed $value, \Closure $fail): void {
+                        (new SecureAccreditationDocument)->validate(
+                            $attribute,
+                            $value,
+                            static function (string $message) use ($fail): void {
+                                $fail(match ($message) {
+                                    'File tidak dapat dibaca dengan benar. Silakan pilih ulang file.' => __('verification.errors.secure_file_unreadable'),
+                                    'Format file harus PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, BMP, atau TIFF.' => __('verification.errors.secure_file_format'),
+                                    'Nama file tidak boleh lebih dari 512 karakter.' => __('verification.errors.secure_file_name_max'),
+                                    'Konten file tidak dapat diperiksa oleh server.' => __('verification.errors.secure_file_content_uninspectable'),
+                                    'Ekstensi file tidak sesuai dengan tipe konten yang terdeteksi.' => __('verification.errors.secure_file_content_mismatch'),
+                                    default => $message,
+                                });
+                            },
+                        );
+                    },
                     static function (string $attribute, mixed $value, \Closure $fail): void {
                         if (mb_strlen($value->getClientOriginalName()) > 255) {
-                            $fail('Nama lampiran maksimal 255 karakter.');
+                            $fail(__('verification.errors.attachment_name_max'));
                         }
                     },
                 ],
             ],
             [
-                'correctionAttachments.max' => 'Maksimal 10 lampiran koreksi dalam satu keputusan.',
-                'correctionAttachments.*.file' => 'Setiap lampiran harus berupa file yang valid.',
-                'correctionAttachments.*.max' => 'Ukuran setiap lampiran maksimal 50 MB.',
+                'correctionAttachments.array' => __('verification.errors.attachments_array'),
+                'correctionAttachments.max' => __('verification.errors.attachments_max'),
+                'correctionAttachments.*.required' => __('verification.errors.attachment_required'),
+                'correctionAttachments.*.file' => __('verification.errors.attachment_file'),
+                'correctionAttachments.*.max' => __('verification.errors.attachment_size_max'),
             ],
         )->validate();
     }
@@ -400,7 +419,7 @@ class AccreditationReviewWorkflowService
     {
         $stream = $disk->readStream($path);
         if ($stream === false) {
-            throw new RuntimeException('Lampiran tersimpan tidak dapat diverifikasi.');
+            throw new RuntimeException(__('verification.errors.stored_attachment_unverifiable'));
         }
 
         try {
@@ -410,6 +429,15 @@ class AccreditationReviewWorkflowService
             return hash_final($context);
         } finally {
             fclose($stream);
+        }
+    }
+
+    private function lockAndAssertWorkflowMutable(int $projectId): void
+    {
+        try {
+            $this->lifecycle->lockAndAssertWorkflowMutable($projectId);
+        } catch (AuthorizationException) {
+            throw new AuthorizationException(__('verification.errors.project_not_active'));
         }
     }
 

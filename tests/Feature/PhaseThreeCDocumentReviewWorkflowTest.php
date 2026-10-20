@@ -35,6 +35,8 @@ use Tests\TestCase;
 
 class PhaseThreeCDocumentReviewWorkflowTest extends TestCase
 {
+    protected string $testLocale = 'id';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -264,7 +266,7 @@ class PhaseThreeCDocumentReviewWorkflowTest extends TestCase
 
         $this->actingAs($reviewer);
         Livewire::test(VerificationShow::class, ['submission' => $submission])
-            ->assertSee('17 Oct 2026')
+            ->assertSee('17 Okt 2026')
             ->assertSee('06:30 WIB');
 
         $this->travel(1)->hour();
@@ -276,7 +278,7 @@ class PhaseThreeCDocumentReviewWorkflowTest extends TestCase
         $this->assertTrue($decided->decided_at->equalTo($decisionActivity->created_at));
 
         Livewire::test(VerificationShow::class, ['submission' => $decided])
-            ->assertSee('17 Oct 2026, 07:30 WIB');
+            ->assertSee('17 Okt 2026, 07:30 WIB');
     }
 
     public function test_requirement_workflows_remain_independent_and_follow_up_uses_mixed_progress(): void

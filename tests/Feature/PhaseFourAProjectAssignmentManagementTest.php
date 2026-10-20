@@ -27,6 +27,8 @@ use Tests\TestCase;
 
 class PhaseFourAProjectAssignmentManagementTest extends TestCase
 {
+    protected string $testLocale = 'id';
+
     protected function setUp(): void
     {
         parent::setUp();

@@ -18,7 +18,7 @@ class AccreditationProjectLifecycleService
     {
         if (! $this->allowsWorkflowMutation($project)) {
             throw new AuthorizationException(
-                'Workflow dokumen hanya dapat dijalankan pada project berstatus aktif.',
+                __('documents.errors.project_not_active'),
             );
         }
     }

@@ -1,0 +1,93 @@
+<?php
+
+return [
+    'meta_title' => 'Ringkasan Progres | APU Accreditation',
+    'refresh' => [
+        'automatic' => 'Pembaruan otomatis setiap 30 detik',
+        'last_updated' => 'Terakhir diperbarui :datetime',
+    ],
+    'eyebrow' => 'Dashboard Akreditasi',
+    'title' => 'Ringkasan Progres',
+    'intro' => [
+        'empty' => 'Monitoring pekerjaan akreditasi yang dapat Anda akses.',
+        'project' => 'Monitoring Akreditasi :study_program - Agung Putra University.',
+    ],
+    'empty' => [
+        'title' => 'Belum ada proyek yang dapat diakses',
+        'body' => 'Project membership atau assignment kriteria aktif belum tersedia untuk akun ini.',
+    ],
+    'project' => [
+        'label' => 'Project',
+    ],
+    'deadline' => [
+        'submission' => 'Batas Akhir Pengajuan',
+        'remaining' => 'Sisa Waktu',
+        'no_start_date' => 'Progress waktu tidak ditampilkan karena tanggal mulai project tidak tersedia.',
+        'overdue' => 'Terlambat :count hari',
+        'today' => 'Jatuh tempo hari ini',
+        'upcoming' => ':count hari lagi',
+    ],
+    'kpi' => [
+        'aria_label' => 'KPI progres Follow Up LED',
+        'total_items' => 'Total Butir',
+        'headers_excluded' => ':count header non-operasional tidak dihitung',
+        'percentage_of_work' => ':percentage% dari total pekerjaan',
+    ],
+    'criteria' => [
+        'title' => 'Progress per Kriteria',
+        'description' => 'Persentase selesai dihitung dari butir yang seluruh rincian wajibnya terverifikasi.',
+        'columns' => [
+            'criterion' => 'Kriteria',
+            'name' => 'Nama Kriteria',
+            'status_distribution' => 'Distribusi Status',
+            'completed' => 'Selesai',
+            'completed_total' => 'Selesai / Total',
+        ],
+        'distribution_aria_label' => 'Distribusi status Kriteria :criterion',
+        'no_work' => 'Tidak ada pekerjaan',
+        'empty' => 'Tidak ada kriteria dalam scope akses ini.',
+    ],
+    'status_distribution' => [
+        'title' => 'Distribusi Status',
+        'description' => 'Setiap butir pekerjaan masuk tepat satu bucket.',
+        'legend_aria_label' => 'Legenda distribusi status',
+        'chart_aria_label' => 'Distribusi status :count butir pekerjaan',
+        'item_unit' => 'butir|butir',
+        'empty_title' => 'Belum ada pekerjaan operasional',
+        'empty_body' => 'Header LED tidak dimasukkan ke distribusi status.',
+    ],
+    'attention' => [
+        'title' => 'Butir Mendekati Deadline / Perlu Perhatian',
+        'description' => 'Urutan: terlambat, perlu revisi, menunggu verifikasi, lalu deadline dalam :count hari.',
+        'columns' => [
+            'number' => 'No.',
+            'item_code' => 'Kode Butir',
+            'item_title' => 'Judul Butir Follow Up LED',
+            'criterion' => 'Kriteria',
+            'aggregate_status' => 'Status Agregat',
+            'internal_deadline' => 'Deadline Internal',
+            'remaining' => 'Sisa Waktu',
+            'action' => 'Aksi',
+        ],
+        'revision_note' => 'Ada rincian perlu revisi',
+        'not_defined' => 'Belum ditentukan',
+        'today' => 'Hari ini',
+        'open_item' => 'Buka Butir',
+        'read_only' => 'Hanya pantauan',
+        'empty_title' => 'Tidak ada butir yang memerlukan perhatian.',
+        'empty_body' => 'Butir terverifikasi dan deadline di luar threshold tidak ditampilkan.',
+    ],
+    'actions' => [
+        'view_all' => 'Lihat Semua',
+    ],
+    'activity' => [
+        'title' => 'Catatan Penting & Aktivitas Terbaru',
+        'description' => 'Aktivitas workflow dalam scope akses project dan kriteria aktif.',
+        'unavailable_title' => 'Aktivitas tidak tersedia untuk peran ini',
+        'unavailable_body' => 'Ringkasan progres tetap mengikuti scope akses Anda.',
+        'empty_title' => 'Belum ada aktivitas terbaru',
+        'empty_body' => 'Upload, submission, dan keputusan review yang valid akan tampil di sini.',
+        'time_unavailable' => 'Waktu tidak tersedia',
+        'by_actor' => 'Oleh :actor',
+    ],
+];

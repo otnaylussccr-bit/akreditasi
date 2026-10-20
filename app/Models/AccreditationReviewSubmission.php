@@ -48,4 +48,9 @@ class AccreditationReviewSubmission extends Model
     {
         return $this->hasMany(AccreditationReviewEvent::class, 'submission_id');
     }
+
+    public function ledAssessmentEvidence(): HasMany
+    {
+        return $this->hasMany(AccreditationLedAssessmentEvidence::class, 'verification_submission_id');
+    }
 }

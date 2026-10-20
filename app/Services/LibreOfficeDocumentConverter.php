@@ -16,17 +16,17 @@ class LibreOfficeDocumentConverter implements OfficeDocumentConverter
     public function availability(): array
     {
         if (! config('document-preview.enabled')) {
-            return ['available' => false, 'reason' => 'Converter belum diaktifkan.'];
+            return ['available' => false, 'reason' => __('verification.preview.converter_disabled')];
         }
 
         if (config('document-preview.security.require_network_isolation')
             && ! config('document-preview.security.network_isolated')) {
-            return ['available' => false, 'reason' => 'Network isolation converter belum dikonfigurasi.'];
+            return ['available' => false, 'reason' => __('verification.preview.network_isolation_unconfigured')];
         }
 
         return $this->executable() !== null
-            ? ['available' => true, 'reason' => 'Siap']
-            : ['available' => false, 'reason' => 'Executable LibreOffice tidak ditemukan.'];
+            ? ['available' => true, 'reason' => __('verification.preview.converter_ready')]
+            : ['available' => false, 'reason' => __('verification.preview.libreoffice_missing')];
     }
 
     public function convert(string $inputPath, string $outputDirectory, string $extension): string
@@ -44,7 +44,7 @@ class LibreOfficeDocumentConverter implements OfficeDocumentConverter
         $runtimeDirectory = dirname($outputDirectory).DIRECTORY_SEPARATOR.'xdg-runtime';
         foreach ([$outputDirectory, $profileDirectory, $temporaryDirectory, $configDirectory, $cacheDirectory, $runtimeDirectory] as $directory) {
             if (! is_dir($directory) && ! mkdir($directory, 0700, true) && ! is_dir($directory)) {
-                throw new OfficeDocumentPreviewException('Temporary directory converter tidak dapat dibuat.', true);
+                throw new OfficeDocumentPreviewException(__('verification.preview_errors.converter_temp_directory_failed'), true);
             }
         }
 
@@ -77,14 +77,14 @@ class LibreOfficeDocumentConverter implements OfficeDocumentConverter
         try {
             $process->mustRun();
         } catch (ProcessTimedOutException $exception) {
-            throw new OfficeDocumentPreviewException('Konversi Office melewati batas waktu.', true, $exception);
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.conversion_timed_out'), true, $exception);
         } catch (Throwable $exception) {
-            throw new OfficeDocumentPreviewException('LibreOffice gagal mengonversi dokumen.', true, $exception);
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.conversion_failed'), true, $exception);
         }
 
         $outputPath = $outputDirectory.DIRECTORY_SEPARATOR.pathinfo($inputPath, PATHINFO_FILENAME).'.pdf';
         if (! is_file($outputPath)) {
-            throw new OfficeDocumentPreviewException('LibreOffice tidak menghasilkan PDF.', true);
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.no_pdf_output'), true);
         }
 
         return $outputPath;

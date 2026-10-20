@@ -14,7 +14,7 @@ class SecureAccreditationDocument implements ValidationRule
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if (! $value instanceof UploadedFile || ! $value->isValid()) {
-            $fail('File tidak dapat dibaca dengan benar. Silakan pilih ulang file.');
+            $fail(__('documents.validation.file_unreadable'));
 
             return;
         }
@@ -22,13 +22,13 @@ class SecureAccreditationDocument implements ValidationRule
         $extension = strtolower($value->getClientOriginalExtension());
 
         if (! in_array($extension, self::EXTENSIONS, true)) {
-            $fail('Format file harus PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, BMP, atau TIFF.');
+            $fail(__('documents.validation.unsupported_format'));
 
             return;
         }
 
         if (mb_strlen($value->getClientOriginalName()) > 512) {
-            $fail('Nama file tidak boleh lebih dari 512 karakter.');
+            $fail(__('documents.validation.filename_too_long'));
 
             return;
         }
@@ -37,7 +37,7 @@ class SecureAccreditationDocument implements ValidationRule
         $mime = $value->getMimeType();
 
         if (! is_string($path) || $path === '' || ! is_string($mime)) {
-            $fail('Konten file tidak dapat diperiksa oleh server.');
+            $fail(__('documents.validation.content_uninspectable'));
 
             return;
         }
@@ -56,7 +56,7 @@ class SecureAccreditationDocument implements ValidationRule
         };
 
         if (! $valid) {
-            $fail('Ekstensi file tidak sesuai dengan tipe konten yang terdeteksi.');
+            $fail(__('documents.validation.extension_mismatch'));
         }
     }
 

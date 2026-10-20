@@ -2,6 +2,7 @@
 
 namespace App\Livewire\TeamActivity;
 
+use App\Livewire\Component;
 use App\Models\User;
 use App\Services\AccreditationAuthorizationService;
 use App\Services\AccreditationProjectContextService;
@@ -11,13 +12,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
-use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('components.layouts.app')]
-#[Title('Aktivitas Tim | APU Accreditation')]
 class Index extends Component
 {
     use WithPagination;
@@ -134,7 +132,7 @@ class Index extends Component
             'project' => $project,
             'criteria' => $criteria,
             'actorOptions' => $actorOptions,
-            'eventOptions' => AccreditationWorkflowActivityService::EVENTS,
+            'eventOptions' => $activity->eventOptions(),
             'activities' => $paginator,
             'todayCount' => $todayCount,
             'verifiedCount' => $verifiedCount,
@@ -142,7 +140,7 @@ class Index extends Component
             'mostActivePic' => $activity->mostActivePic($filteredQuery),
             'categories' => $activity->categorySummaries($filteredQuery, $project),
             'periodLabel' => $this->periodLabel(),
-        ]);
+        ])->title(__('team_activity.meta_title'));
     }
 
     private function authorizedProjects(AccreditationAuthorizationService $authorization): Collection
@@ -194,10 +192,22 @@ class Index extends Component
     private function periodLabel(): string
     {
         return match (true) {
-            $this->dateFrom !== '' && $this->dateTo !== '' => Carbon::parse($this->dateFrom)->format('d M Y').' - '.Carbon::parse($this->dateTo)->format('d M Y'),
-            $this->dateFrom !== '' => 'Sejak '.Carbon::parse($this->dateFrom)->format('d M Y'),
-            $this->dateTo !== '' => 'Sampai '.Carbon::parse($this->dateTo)->format('d M Y'),
-            default => 'Semua periode',
+            $this->dateFrom !== '' && $this->dateTo !== '' => __('team_activity.period.range', [
+                'from' => $this->localizedDate($this->dateFrom),
+                'to' => $this->localizedDate($this->dateTo),
+            ]),
+            $this->dateFrom !== '' => __('team_activity.period.since', [
+                'date' => $this->localizedDate($this->dateFrom),
+            ]),
+            $this->dateTo !== '' => __('team_activity.period.until', [
+                'date' => $this->localizedDate($this->dateTo),
+            ]),
+            default => __('team_activity.period.all'),
         };
+    }
+
+    private function localizedDate(string $date): string
+    {
+        return Carbon::parse($date)->locale(app()->getLocale())->translatedFormat('d M Y');
     }
 }

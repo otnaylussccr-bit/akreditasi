@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Repository;
 
+use App\Livewire\Component;
 use App\Models\AccreditationCriterionAssignment;
 use App\Models\AccreditationProject;
 use App\Models\User;
@@ -9,18 +10,16 @@ use App\Services\AccreditationAuthorizationService;
 use App\Services\AccreditationProgressService;
 use App\Services\AccreditationProjectContextService;
 use App\Services\AccreditationProjectLifecycleService;
+use App\Support\LocalizedLabel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
-use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('components.layouts.app')]
-#[Title('Repository Bukti | APU Accreditation')]
 class Index extends Component
 {
     use WithPagination;
@@ -241,7 +240,9 @@ class Index extends Component
             $documentScope,
             $selectedId,
         );
-        $statusLabels = $progress->statusLabels();
+        $statusLabels = collect($progress->statusLabels())
+            ->map(fn (string $label, string $status): string => LocalizedLabel::status($status))
+            ->all();
 
         return view('livewire.repository.index', [
             'projects' => $projects,
@@ -255,17 +256,17 @@ class Index extends Component
             'versions' => $versions,
             'statusLabels' => $statusLabels,
             'sortOptions' => [
-                'newest' => 'Terbaru',
-                'oldest' => 'Terlama',
-                'name_asc' => 'Nama A-Z',
-                'name_desc' => 'Nama Z-A',
-                'size_desc' => 'Ukuran Terbesar',
-                'version_desc' => 'Versi Tertinggi',
+                'newest' => __('repository.sorts.newest'),
+                'oldest' => __('repository.sorts.oldest'),
+                'name_asc' => __('repository.sorts.name_asc'),
+                'name_desc' => __('repository.sorts.name_desc'),
+                'size_desc' => __('repository.sorts.size_desc'),
+                'version_desc' => __('repository.sorts.version_desc'),
             ],
             'previewableExtensions' => self::PREVIEWABLE_EXTENSIONS,
             'canUpload' => $lifecycle->allowsWorkflowMutation($project)
                 && $this->canUpload($user, $criteria),
-        ]);
+        ])->title(__('repository.meta_title'));
     }
 
     private function authorizedProjects(AccreditationAuthorizationService $authorization): Collection

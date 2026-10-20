@@ -1,26 +1,26 @@
 <div class="verification-index-page">
     <header class="verification-index-heading">
         <div>
-            <span class="eyebrow dark">Antrian Review Rincian</span>
-            <h1>Verifikasi Dokumen</h1>
-            <p>Periksa satu paket snapshot dokumen dan berikan satu keputusan untuk seluruh rincian.</p>
+            <span class="eyebrow dark">{{ __('verification.index.eyebrow') }}</span>
+            <h1>{{ __('verification.index.title') }}</h1>
+            <p>{{ __('verification.index.intro') }}</p>
         </div>
         <div class="verification-queue-stat">
-            <small>Submission Ditampilkan</small>
+            <small>{{ __('verification.index.submissions_shown') }}</small>
             <strong>{{ $submissions->count() }}</strong>
-            <span>{{ $statusLabels[$status] ?? 'Semua Status' }}</span>
+            <span>{{ $statusLabels[$status] ?? __('verification.statuses.all') }}</span>
         </div>
     </header>
 
     <section class="verification-project-card">
         <div>
-            <small>Project Akreditasi</small>
+            <small>{{ __('verification.index.accreditation_project') }}</small>
             <h2>{{ $project->name }}</h2>
             <p>{{ $project->studyProgram->name }} &middot; {{ $project->code }}</p>
         </div>
         @if ($projects->count() > 1)
             <label>
-                <span>Pilih Project</span>
+                <span>{{ __('verification.index.select_project') }}</span>
                 <select wire:model.live="projectId">
                     @foreach ($projects as $accessibleProject)
                         <option value="{{ $accessibleProject->id }}">{{ $accessibleProject->code }}</option>
@@ -32,34 +32,34 @@
 
     <section class="verification-filter-card">
         <label>
-            <span>Kriteria</span>
+            <span>{{ __('verification.index.criterion') }}</span>
             <select wire:model.live="criterionId">
-                <option value="">Semua kriteria</option>
+                <option value="">{{ __('verification.index.all_criteria') }}</option>
                 @foreach ($criteria as $criterion)
                     <option value="{{ $criterion->id }}">{{ $criterion->code }} &middot; {{ $criterion->name }}</option>
                 @endforeach
             </select>
         </label>
         <label>
-            <span>Status</span>
+            <span>{{ __('verification.index.status') }}</span>
             <select wire:model.live="status">
-                <option value="pending_review">Menunggu Verifikasi</option>
-                <option value="verified">Terverifikasi</option>
-                <option value="need_revision">Perlu Revisi</option>
-                <option value="all">Semua status</option>
+                <option value="pending_review">{{ __('verification.statuses.pending_review') }}</option>
+                <option value="verified">{{ __('verification.statuses.verified') }}</option>
+                <option value="need_revision">{{ __('verification.statuses.need_revision') }}</option>
+                <option value="all">{{ __('verification.statuses.all') }}</option>
             </select>
         </label>
     </section>
 
     <section class="verification-queue-card">
         <div class="verification-queue-heading">
-            <div><strong>Daftar Rincian</strong><span>Scope dibatasi oleh assignment reviewer aktif.</span></div>
-            <span>{{ $submissions->count() }} submission</span>
+            <div><strong>{{ __('verification.index.queue_title') }}</strong><span>{{ __('verification.index.queue_scope') }}</span></div>
+            <span>{{ trans_choice('verification.index.submission_count', $submissions->count(), ['count' => $submissions->count()]) }}</span>
         </div>
         <div class="verification-table-wrap">
             <table class="verification-table">
                 <thead>
-                    <tr><th>Butir & Rincian</th><th>PIC / Submitter</th><th>File</th><th>Tanggal Submit</th><th>Status</th><th>Aksi</th></tr>
+                    <tr><th>{{ __('verification.index.columns.item') }}</th><th>{{ __('verification.index.columns.submitter') }}</th><th>{{ __('verification.index.columns.file') }}</th><th>{{ __('verification.index.columns.submitted_at') }}</th><th>{{ __('verification.index.columns.status') }}</th><th>{{ __('verification.index.columns.action') }}</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($submissions as $submission)
@@ -74,14 +74,14 @@
                                 <strong>{{ $requirement->title }}</strong>
                                 <small>{{ $criterion->name }}</small>
                             </td>
-                            <td><strong>{{ $submission->submitter->name }}</strong><small>Revisi {{ $submission->revision_number }}</small></td>
-                            <td><strong>{{ $submission->documents_count }}</strong><small>snapshot file</small></td>
-                            <td><strong>{{ \App\Support\BusinessDateTime::format($submission->submitted_at, 'd M Y') }}</strong><small>{{ \App\Support\BusinessDateTime::label($submission->submitted_at, 'H:i') }}</small></td>
-                            <td><span class="workflow-badge status-{{ $submission->status }}">{{ $statusLabels[$submission->status] ?? $submission->status }}</span></td>
-                            <td><a href="{{ route('verifications.show', $submission) }}" wire:navigate>Buka Verifikasi</a></td>
+                            <td><strong>{{ $submission->submitter->name }}</strong><small>{{ __('verification.labels.revision', ['number' => $submission->revision_number]) }}</small></td>
+                            <td><strong>{{ $submission->documents_count }}</strong><small>{{ trans_choice('verification.index.snapshot_files', $submission->documents_count) }}</small></td>
+                            <td><strong>{{ \App\Support\BusinessDateTime::inBusinessTimezone($submission->submitted_at)->locale(app()->getLocale())->translatedFormat('d M Y') }}</strong><small>{{ \App\Support\BusinessDateTime::label($submission->submitted_at, 'H:i') }}</small></td>
+                            <td><span class="workflow-badge status-{{ $submission->status }}">{{ $statusLabels[$submission->status] ?? __('verification.statuses.unknown') }}</span></td>
+                            <td><a href="{{ route('verifications.show', $submission) }}" wire:navigate>{{ __('verification.index.open_verification') }}</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="6"><div class="verification-empty"><strong>Tidak ada submission</strong><span>Tidak ada rincian pada filter dan scope aktif.</span></div></td></tr>
+                        <tr><td colspan="6"><div class="verification-empty"><strong>{{ __('verification.index.empty_title') }}</strong><span>{{ __('verification.index.empty_body') }}</span></div></td></tr>
                     @endforelse
                 </tbody>
             </table>

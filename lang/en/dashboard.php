@@ -1,0 +1,93 @@
+<?php
+
+return [
+    'meta_title' => 'Progress Overview | APU Accreditation',
+    'refresh' => [
+        'automatic' => 'Automatically refreshes every 30 seconds',
+        'last_updated' => 'Last updated :datetime',
+    ],
+    'eyebrow' => 'Accreditation Dashboard',
+    'title' => 'Progress Overview',
+    'intro' => [
+        'empty' => 'Monitor the accreditation work available to you.',
+        'project' => 'Monitoring the accreditation of :study_program at Agung Putra University.',
+    ],
+    'empty' => [
+        'title' => 'No accessible projects',
+        'body' => 'No active project membership or criterion assignment is available for this account.',
+    ],
+    'project' => [
+        'label' => 'Project',
+    ],
+    'deadline' => [
+        'submission' => 'Submission Deadline',
+        'remaining' => 'Time Remaining',
+        'no_start_date' => 'Timeline progress is unavailable because the project start date has not been set.',
+        'overdue' => '{1} 1 day overdue|[2,*] :count days overdue',
+        'today' => 'Due today',
+        'upcoming' => '{1} 1 day remaining|[2,*] :count days remaining',
+    ],
+    'kpi' => [
+        'aria_label' => 'Follow Up LED progress indicators',
+        'total_items' => 'Total Items',
+        'headers_excluded' => '{1} :count non-operational header is excluded|[0,*] :count non-operational headers are excluded',
+        'percentage_of_work' => ':percentage% of all work items',
+    ],
+    'criteria' => [
+        'title' => 'Progress by Criterion',
+        'description' => 'Completion is calculated from items whose required details have all been verified.',
+        'columns' => [
+            'criterion' => 'Criterion',
+            'name' => 'Criterion Name',
+            'status_distribution' => 'Status Distribution',
+            'completed' => 'Completed',
+            'completed_total' => 'Completed / Total',
+        ],
+        'distribution_aria_label' => 'Status distribution for criterion :criterion',
+        'no_work' => 'No work items',
+        'empty' => 'There are no criteria within your access scope.',
+    ],
+    'status_distribution' => [
+        'title' => 'Status Distribution',
+        'description' => 'Each work item is assigned to exactly one status group.',
+        'legend_aria_label' => 'Status distribution legend',
+        'chart_aria_label' => '{1} Status distribution for 1 work item|[0,*] Status distribution for :count work items',
+        'item_unit' => 'item|items',
+        'empty_title' => 'No operational work items yet',
+        'empty_body' => 'LED headers are excluded from the status distribution.',
+    ],
+    'attention' => [
+        'title' => 'Items Nearing Their Deadline / Requiring Attention',
+        'description' => '{1} Order: overdue, needs revision, pending verification, then due within 1 day.|[2,*] Order: overdue, needs revision, pending verification, then due within :count days.',
+        'columns' => [
+            'number' => 'No.',
+            'item_code' => 'Item Code',
+            'item_title' => 'Follow Up LED Item Title',
+            'criterion' => 'Criterion',
+            'aggregate_status' => 'Aggregate Status',
+            'internal_deadline' => 'Internal Deadline',
+            'remaining' => 'Time Remaining',
+            'action' => 'Action',
+        ],
+        'revision_note' => 'A detail needs revision',
+        'not_defined' => 'Not specified',
+        'today' => 'Today',
+        'open_item' => 'Open Item',
+        'read_only' => 'Monitoring only',
+        'empty_title' => 'No items require attention.',
+        'empty_body' => 'Verified items and deadlines outside the threshold are not shown.',
+    ],
+    'actions' => [
+        'view_all' => 'View All',
+    ],
+    'activity' => [
+        'title' => 'Important Notes & Recent Activity',
+        'description' => 'Workflow activity within your active project and criterion access scope.',
+        'unavailable_title' => 'Activity is unavailable for this role',
+        'unavailable_body' => 'The progress overview still reflects your access scope.',
+        'empty_title' => 'No recent activity',
+        'empty_body' => 'Valid uploads, submissions, and review decisions will appear here.',
+        'time_unavailable' => 'Time unavailable',
+        'by_actor' => 'By :actor',
+    ],
+];

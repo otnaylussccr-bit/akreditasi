@@ -65,4 +65,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(AccreditationCriterionAssignment::class);
     }
+
+    public function ledAssessorAssignments(): HasMany
+    {
+        return $this->hasMany(AccreditationLedAssessorAssignment::class, 'user_id');
+    }
 }

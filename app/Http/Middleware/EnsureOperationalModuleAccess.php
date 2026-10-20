@@ -10,7 +10,14 @@ class EnsureOperationalModuleAccess
 {
     public function handle(Request $request, Closure $next): Response
     {
-        abort_if($request->user()?->hasExactRoles('Viewer'), 403);
+        $user = $request->user();
+        if ($user?->hasExactRoles('Viewer')) {
+            $hasLedAssignment = $request->routeIs('led-assessment.index')
+                && $user->ledAssessorAssignments()
+                    ->whereNull('revoked_at')
+                    ->exists();
+            abort_unless($hasLedAssignment, 403);
+        }
 
         return $next($request);
     }

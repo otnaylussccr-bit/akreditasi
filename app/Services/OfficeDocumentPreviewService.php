@@ -35,11 +35,11 @@ class OfficeDocumentPreviewService
     public function status(AccreditationDocument $document): array
     {
         if (! $this->supports($document)) {
-            return $this->state('unsupported', 'Format ini tidak menggunakan Office Preview Engine.');
+            return $this->state('unsupported', __('verification.preview.unsupported'));
         }
 
         if (! config('document-preview.enabled')) {
-            return $this->state('unavailable', 'Converter belum diaktifkan.');
+            return $this->state('unavailable', __('verification.preview.converter_disabled'));
         }
 
         /** @var FilesystemAdapter $disk */
@@ -47,8 +47,8 @@ class OfficeDocumentPreviewService
         $previewPath = $this->paths->preview($document);
         if ($disk->exists($previewPath)) {
             return $this->validStoredPdf($disk, $previewPath)
-                ? $this->state('ready', 'Preview siap ditampilkan.')
-                : $this->state('failed', 'Cache preview tidak valid.');
+                ? $this->state('ready', __('verification.preview.ready'))
+                : $this->state('failed', __('verification.preview.invalid_cache'));
         }
 
         $marker = $this->readStatusMarker($document);
@@ -61,8 +61,8 @@ class OfficeDocumentPreviewService
             return $this->state(
                 $marker['state'],
                 $marker['state'] === 'processing'
-                    ? 'Preview sedang diproses.'
-                    : 'Preview gagal dibuat. File original tetap tersedia.',
+                    ? __('verification.preview.processing')
+                    : __('verification.preview.failed_original_available'),
             );
         }
 
@@ -71,7 +71,7 @@ class OfficeDocumentPreviewService
             return $this->state('unavailable', $availability['reason']);
         }
 
-        return $this->state('missing', 'Preview belum tersedia.');
+        return $this->state('missing', __('verification.preview.missing'));
     }
 
     /** @return array{state: string, message: string, poll: bool} */
@@ -111,7 +111,7 @@ class OfficeDocumentPreviewService
                 strtolower($document->sha256),
             );
 
-            return $this->state('processing', 'Preview sedang diproses.');
+            return $this->state('processing', __('verification.preview.processing'));
         } catch (Throwable) {
             try {
                 $this->writeStatusMarker($document, 'failed');
@@ -119,7 +119,7 @@ class OfficeDocumentPreviewService
                 // The fallback response must remain available when queue and cache storage both fail.
             }
 
-            return $this->state('failed', 'Preview gagal dijadwalkan. File original tetap tersedia.');
+            return $this->state('failed', __('verification.preview.schedule_failed'));
         } finally {
             $lock->release();
         }
@@ -132,12 +132,12 @@ class OfficeDocumentPreviewService
     ): void {
         $expectedSha256 = strtolower($expectedSha256);
         if (! hash_equals(strtolower($document->sha256), $expectedSha256)) {
-            throw new OfficeDocumentPreviewException('Checksum document berubah sebelum conversion.');
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.checksum_changed'));
         }
 
         $this->assertSnapshotMembership($document, $submission);
         if (! $this->supports($document)) {
-            throw new OfficeDocumentPreviewException('Format Office tidak didukung.');
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.unsupported_office_format'));
         }
 
         $availability = $this->converter->availability();
@@ -198,7 +198,7 @@ class OfficeDocumentPreviewService
     ): void {
         if ($submission->requirement_id !== $document->requirement_id
             || ! $submission->documents()->whereKey($document->id)->exists()) {
-            throw new OfficeDocumentPreviewException('Dokumen bukan bagian dari snapshot submission.');
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.not_in_submission_snapshot'));
         }
     }
 
@@ -207,7 +207,7 @@ class OfficeDocumentPreviewService
         /** @var FilesystemAdapter $disk */
         $disk = Storage::disk($document->disk);
         if (! $disk->exists($document->storage_path)) {
-            throw new OfficeDocumentPreviewException('File original tidak tersedia.');
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.original_unavailable'));
         }
 
         $source = $disk->readStream($document->storage_path);
@@ -220,7 +220,7 @@ class OfficeDocumentPreviewService
                 fclose($target);
             }
 
-            throw new OfficeDocumentPreviewException('File original tidak dapat disalin.');
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.original_copy_failed'));
         }
 
         try {
@@ -235,12 +235,12 @@ class OfficeDocumentPreviewService
         }
 
         if (! is_int($bytes) || $bytes < 1 || $bytes > (int) config('document-preview.max_input_bytes')) {
-            throw new OfficeDocumentPreviewException('Ukuran file Office melewati batas preview.');
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.office_size_limit'));
         }
 
         $actualSha256 = hash_file('sha256', $destination);
         if (! is_string($actualSha256) || ! hash_equals(strtolower($document->sha256), $actualSha256)) {
-            throw new OfficeDocumentPreviewException('Checksum file original tidak sesuai metadata.');
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.original_checksum_mismatch'));
         }
     }
 
@@ -248,12 +248,12 @@ class OfficeDocumentPreviewService
     {
         $size = is_file($path) ? filesize($path) : false;
         if (! is_int($size) || $size < 40 || $size > (int) config('document-preview.max_output_bytes')) {
-            throw new OfficeDocumentPreviewException('Ukuran output PDF tidak valid.');
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.pdf_size_invalid'));
         }
 
         $handle = fopen($path, 'rb');
         if ($handle === false) {
-            throw new OfficeDocumentPreviewException('Output PDF tidak dapat dibaca.');
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.pdf_unreadable'));
         }
 
         try {
@@ -266,7 +266,7 @@ class OfficeDocumentPreviewService
         }
 
         if ($head !== '%PDF-' || ! is_string($tail) || preg_match('/%%EOF\s*$/', $tail) !== 1) {
-            throw new OfficeDocumentPreviewException('Output converter bukan PDF yang valid.');
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.converter_output_invalid'));
         }
     }
 
@@ -278,7 +278,7 @@ class OfficeDocumentPreviewService
         $temporaryPath = $previewPath.'.publishing-'.Str::uuid();
         $stream = fopen($outputPath, 'rb');
         if ($stream === false) {
-            throw new OfficeDocumentPreviewException('Output PDF tidak dapat dipublikasikan.', true);
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.pdf_publish_failed'), true);
         }
 
         try {
@@ -291,13 +291,13 @@ class OfficeDocumentPreviewService
             $disk->setVisibility($previewPath, 'private');
         } catch (Throwable $exception) {
             $disk->delete($temporaryPath);
-            throw new OfficeDocumentPreviewException('Cache PDF gagal dipublikasikan.', true, $exception);
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.pdf_cache_publish_failed'), true, $exception);
         } finally {
             fclose($stream);
         }
 
         if (! $this->validStoredPdf($disk, $previewPath)) {
-            throw new OfficeDocumentPreviewException('Cache PDF hasil publish tidak valid.', true);
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.pdf_cache_invalid'), true);
         }
     }
 
@@ -375,7 +375,7 @@ class OfficeDocumentPreviewService
             $disk->setVisibility($statusPath, 'private');
         } catch (Throwable $exception) {
             $disk->delete($temporaryPath);
-            throw new OfficeDocumentPreviewException('Status cache preview gagal disimpan.', true, $exception);
+            throw new OfficeDocumentPreviewException(__('verification.preview_errors.preview_status_save_failed'), true, $exception);
         }
     }
 

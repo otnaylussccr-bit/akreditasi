@@ -7,6 +7,8 @@ use Tests\TestCase;
 
 class VisualBackgroundTest extends TestCase
 {
+    protected string $testLocale = 'id';
+
     public function test_campus_background_is_an_unchanged_local_public_asset(): void
     {
         $publicAsset = public_path('images/apu/background-campus.jpeg');

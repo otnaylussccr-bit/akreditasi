@@ -21,9 +21,18 @@ final class BusinessDateTime
         return self::inBusinessTimezone($value)->format($format);
     }
 
+    public static function localizedFormat(DateTimeInterface|string $value, string $format = 'd M Y, H:i'): string
+    {
+        return self::inBusinessTimezone($value)
+            ->locale(app()->getLocale())
+            ->translatedFormat($format);
+    }
+
     public static function label(DateTimeInterface|string $value, string $format = 'd M Y, H:i'): string
     {
-        return self::format($value, $format).' WIB';
+        $dateTime = self::inBusinessTimezone($value);
+
+        return $dateTime->locale(app()->getLocale())->translatedFormat($format).' '.$dateTime->format('T');
     }
 
     public static function startOfDayUtc(string $date): CarbonImmutable

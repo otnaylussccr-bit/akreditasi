@@ -20,6 +20,8 @@ use Tests\TestCase;
 
 class FollowUpLedTest extends TestCase
 {
+    protected string $testLocale = 'id';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -383,9 +385,9 @@ class FollowUpLedTest extends TestCase
             ->assertSee('Wajib')
             ->assertSee('1 file')
             ->assertSee('Terkunci')
-            ->assertSee('Upload')
+            ->assertSee('Unggah')
             ->assertSee(route('documents.preview', $document), false)
-            ->assertSee('Quick Summary Butir')
+            ->assertSee('Ringkasan Cepat Butir')
             ->assertSee('Ringkasan operasional butir untuk panel kanan.')
             ->assertSee('1 / 2')
             ->assertSee('50%');

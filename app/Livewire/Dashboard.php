@@ -12,12 +12,9 @@ use App\Support\BusinessDateTime;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
-use Livewire\Component;
 
 #[Layout('components.layouts.app')]
-#[Title('Ringkasan Progres | APU Accreditation')]
 class Dashboard extends Component
 {
     private const ATTENTION_THRESHOLD_DAYS = 30;
@@ -87,7 +84,8 @@ class Dashboard extends Component
         $projects = $context->ordered($this->authorizedProjects($authorization));
 
         if ($projects->isEmpty()) {
-            return view('livewire.dashboard', $this->emptyViewData($projects, $progress));
+            return view('livewire.dashboard', $this->emptyViewData($projects, $progress))
+                ->title(__('dashboard.meta_title'));
         }
 
         $project = $projects->firstWhere('id', $this->projectId);
@@ -145,7 +143,7 @@ class Dashboard extends Component
                 ? null
                 : route('follow-up-led.index', ['proyek' => $project->id]),
             'viewerTvMode' => $viewerTvMode,
-        ]);
+        ])->title(__('dashboard.meta_title'));
     }
 
     private function authorizedProjects(AccreditationAuthorizationService $authorization): Collection
@@ -229,9 +227,9 @@ class Dashboard extends Component
             'days' => $days,
             'state' => $days < 0 ? 'overdue' : ($days === 0 ? 'today' : 'upcoming'),
             'label' => match (true) {
-                $days < 0 => 'Terlambat '.abs($days).' hari',
-                $days === 0 => 'Jatuh tempo hari ini',
-                default => $days.' hari lagi',
+                $days < 0 => trans_choice('dashboard.deadline.overdue', abs($days), ['count' => abs($days)]),
+                $days === 0 => __('dashboard.deadline.today'),
+                default => trans_choice('dashboard.deadline.upcoming', $days, ['count' => $days]),
             },
         ];
     }
@@ -272,10 +270,10 @@ class Dashboard extends Component
                     'days' => $days,
                     'priority' => $priority,
                     'time_label' => match (true) {
-                        $days === null => 'Belum ditentukan',
-                        $days < 0 => 'Terlambat '.abs($days).' hari',
-                        $days === 0 => 'Hari ini',
-                        default => $days.' hari lagi',
+                        $days === null => __('dashboard.attention.not_defined'),
+                        $days < 0 => trans_choice('dashboard.deadline.overdue', abs($days), ['count' => abs($days)]),
+                        $days === 0 => __('dashboard.attention.today'),
+                        default => trans_choice('dashboard.deadline.upcoming', $days, ['count' => $days]),
                     },
                     'url' => $includeLinks
                         ? route('follow-up-led.index', [

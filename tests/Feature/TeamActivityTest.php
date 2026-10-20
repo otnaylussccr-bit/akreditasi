@@ -24,6 +24,8 @@ use Tests\TestCase;
 
 class TeamActivityTest extends TestCase
 {
+    protected string $testLocale = 'id';
+
     protected function setUp(): void
     {
         parent::setUp();

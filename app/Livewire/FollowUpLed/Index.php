@@ -2,24 +2,23 @@
 
 namespace App\Livewire\FollowUpLed;
 
+use App\Livewire\Component;
 use App\Models\AccreditationItem;
 use App\Models\AccreditationProject;
 use App\Services\AccreditationAuthorizationService;
 use App\Services\AccreditationProgressService;
 use App\Services\AccreditationProjectContextService;
+use App\Support\LocalizedLabel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
-use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('components.layouts.app')]
-#[Title('Follow Up LED | APU Accreditation')]
 class Index extends Component
 {
     use WithPagination;
@@ -189,8 +188,10 @@ class Index extends Component
             'workItemCount' => $summary['work_count'],
             'verifiedWorkItemCount' => $summary['verified_count'],
             'workProgress' => $summary['completion_percentage'],
-            'statusOptions' => $progress->statusLabels(),
-        ]);
+            'statusOptions' => collect($progress->statusLabels())
+                ->map(fn (string $label, string $status): string => LocalizedLabel::status($status))
+                ->all(),
+        ])->title(__('follow_up_led.meta_title'));
     }
 
     private function authorizedProjects(

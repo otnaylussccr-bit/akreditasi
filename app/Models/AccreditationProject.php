@@ -24,6 +24,16 @@ class AccreditationProject extends Model
         return $this->belongsTo(StudyProgram::class);
     }
 
+    public function instrument(): BelongsTo
+    {
+        return $this->belongsTo(AccreditationInstrument::class, 'instrument_id');
+    }
+
+    public function assessmentCycles(): HasMany
+    {
+        return $this->hasMany(AccreditationLedAssessmentCycle::class, 'project_id');
+    }
+
     public function criteria(): HasMany
     {
         return $this->hasMany(AccreditationCriterion::class, 'project_id')->orderBy('position');

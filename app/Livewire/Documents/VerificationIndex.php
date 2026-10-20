@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Documents;
 
+use App\Livewire\Component;
 use App\Models\AccreditationCriterion;
 use App\Models\AccreditationReviewSubmission;
 use App\Models\User;
@@ -12,12 +13,9 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
-use Livewire\Component;
 
 #[Layout('components.layouts.app')]
-#[Title('Verifikasi Dokumen | APU Accreditation')]
 class VerificationIndex extends Component
 {
     #[Url(as: 'proyek', except: null)]
@@ -112,11 +110,11 @@ class VerificationIndex extends Component
             'criteria' => $criteria,
             'submissions' => $submissions,
             'statusLabels' => [
-                'pending_review' => 'Menunggu Verifikasi',
-                'verified' => 'Terverifikasi',
-                'need_revision' => 'Perlu Revisi',
+                'pending_review' => __('verification.statuses.pending_review'),
+                'verified' => __('verification.statuses.verified'),
+                'need_revision' => __('verification.statuses.need_revision'),
             ],
-        ]);
+        ])->title(__('verification.meta.index'));
     }
 
     private function authorizedProjects(

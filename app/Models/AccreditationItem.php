@@ -27,4 +27,9 @@ class AccreditationItem extends Model
     {
         return $this->hasMany(AccreditationDocumentRequirement::class, 'item_id')->orderBy('number');
     }
+
+    public function ledIndicatorMappings(): HasMany
+    {
+        return $this->hasMany(AccreditationLedIndicatorItemMapping::class, 'item_id');
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Documents;
 
+use App\Livewire\Component;
 use App\Models\AccreditationReviewSubmission;
 use App\Services\AccreditationProjectContextService;
 use App\Services\AccreditationReviewWorkflowService;
@@ -10,13 +11,10 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
-use Livewire\Attributes\Title;
-use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 
 #[Layout('components.layouts.app')]
-#[Title('Proses Verifikasi Dokumen | APU Accreditation')]
 class VerificationShow extends Component
 {
     use WithFileUploads;
@@ -120,7 +118,7 @@ class VerificationShow extends Component
         $submission = $this->authorizedSubmission();
         if (! $this->confirmingDecision) {
             throw ValidationException::withMessages([
-                'decision' => 'Konfirmasi keputusan sebelum menyimpan.',
+                'decision' => __('verification.errors.confirm_decision'),
             ]);
         }
 
@@ -146,8 +144,8 @@ class VerificationShow extends Component
         $this->correctionAttachments = [];
         $this->confirmingDecision = false;
         $this->successMessage = $decided->status === 'verified'
-            ? 'Rincian berhasil ditandai Terverifikasi.'
-            : 'Permintaan revisi berhasil dikirim kepada PIC.';
+            ? __('verification.notifications.verified')
+            : __('verification.notifications.revision_requested');
     }
 
     public function render()
@@ -179,7 +177,15 @@ class VerificationShow extends Component
                 && (Gate::allows('verify', $submission) || Gate::allows('requestRevision', $submission)),
             'canVerify' => Gate::allows('verify', $submission),
             'canRequestRevision' => Gate::allows('requestRevision', $submission),
-        ]);
+            'statusLabels' => [
+                'pending_review' => __('verification.statuses.pending_review'),
+                'verified' => __('verification.statuses.verified'),
+                'need_revision' => __('verification.statuses.need_revision'),
+            ],
+            'projectStatusLabel' => $this->projectStatusLabel(
+                $submission->requirement->item->criterion->project->status,
+            ),
+        ])->title(__('verification.meta.show'));
     }
 
     private function authorizedSubmission(): AccreditationReviewSubmission
@@ -190,5 +196,14 @@ class VerificationShow extends Component
         Gate::authorize('view', $submission);
 
         return $submission;
+    }
+
+    private function projectStatusLabel(string $status): string
+    {
+        $key = 'verification.project_statuses.'.$status;
+
+        return app('translator')->has($key)
+            ? __($key)
+            : __('verification.project_statuses.unknown');
     }
 }

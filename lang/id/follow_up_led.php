@@ -1,0 +1,90 @@
+<?php
+
+return [
+    'meta_title' => 'Tindak Lanjut LED | APU Accreditation',
+    'heading' => [
+        'eyebrow' => 'Monitoring Butir Akreditasi',
+        'title' => 'Tindak Lanjut LED',
+        'work_summary' => '{1} :count pekerjaan tindak lanjut LED|[0,*] :count pekerjaan tindak lanjut LED',
+        'read_only' => 'Hanya baca',
+        'final_deadline' => 'Batas Akhir Final',
+        'total_work' => 'Total Pekerjaan',
+        'structure_count' => '{1} :count struktur|[0,*] :count struktur',
+        'header_count' => '{1} :count header LED|[0,*] :count header LED',
+        'completed' => 'Selesai',
+        'completion_summary' => '{1} :percent% dari :count pekerjaan|[0,*] :percent% dari :count pekerjaan',
+    ],
+    'empty_criteria' => [
+        'title' => 'Tidak ada kriteria yang dapat diakses',
+        'help' => 'Membership proyek atau assignment kriteria aktif tidak tersedia untuk akun ini.',
+    ],
+    'filters' => [
+        'aria_label' => 'Filter Tindak Lanjut LED',
+        'all_statuses' => 'Semua Status',
+        'source_pic' => 'PIC Sumber Excel',
+        'all_source_pics' => 'Semua PIC',
+        'search_placeholder' => 'Cari butir atau rincian...',
+        'reset' => 'Reset Filter',
+    ],
+    'statuses' => [
+        'header' => 'Header LED',
+    ],
+    'list' => [
+        'help' => 'Pilih butir untuk melihat rincian dokumen lengkap tanpa meninggalkan halaman.',
+        'displayed' => '{1} :visible dari :total butir ditampilkan|[0,*] :visible dari :total butir ditampilkan',
+    ],
+    'item' => [
+        'header_description' => 'Struktur pembuka Laporan Evaluasi Diri',
+        'requirement_count' => '{1} :count rincian dokumen|[0,*] :count rincian dokumen',
+        'needs_revision' => 'Ada rincian perlu revisi',
+        'detail_open' => 'Rincian Terbuka',
+        'view_detail' => 'Lihat Rincian',
+        'source_pic' => 'PIC Sumber',
+        'not_listed' => 'Belum tercantum',
+        'internal_deadline' => 'Deadline Internal',
+        'required_progress' => 'Progress Wajib',
+        'progress_aria' => 'Progress :percent persen',
+    ],
+    'header_notice' => 'Header LED tidak memerlukan upload, verifikasi, atau progress rincian.',
+    'expanded' => [
+        'title' => 'Rincian Dokumen Operasional',
+        'help' => 'Status dan file ditampilkan langsung dari setiap rincian.',
+        'requirement_count' => '{1} :count rincian|[0,*] :count rincian',
+    ],
+    'table' => [
+        'number' => 'No.',
+        'requirement' => 'Rincian Dokumen',
+        'nature' => 'Sifat',
+        'latest' => 'Terbaru: :name',
+    ],
+    'nature' => [
+        'required' => 'Wajib',
+        'optional' => 'Opsional',
+    ],
+    'states' => [
+        'locked' => 'Terkunci',
+        'read_only' => 'Hanya baca',
+        'active_aria' => 'Butir aktif',
+    ],
+    'empty_requirements' => 'Belum ada rincian dokumen pada butir ini.',
+    'empty_items' => [
+        'title' => 'Tidak ada pekerjaan yang sesuai',
+        'help' => 'Ubah atau reset kombinasi filter pada kriteria aktif.',
+    ],
+    'pagination' => [
+        'summary' => '{1} Menampilkan :first-:last dari :total butir|[0,*] Menampilkan :first-:last dari :total butir',
+    ],
+    'detail' => [
+        'quick_summary' => 'Ringkasan Cepat Butir',
+        'action_required' => 'Tindakan diperlukan',
+        'revision_help' => 'Satu atau lebih rincian wajib dikembalikan untuk revisi.',
+        'header_title' => 'Header Laporan Evaluasi Diri',
+        'header_help' => 'Butir ini tidak memerlukan upload, verifikasi, atau progress rincian.',
+        'deadline' => 'Deadline',
+        'verified_progress' => 'Progress Terverifikasi',
+        'description' => 'Deskripsi / Ringkasan Butir',
+        'requirement_summary' => 'Ringkasan Rincian',
+        'actual_status' => 'Status aktual',
+    ],
+    'file_count' => '{1} :count file|[0,*] :count file',
+];

@@ -51,7 +51,9 @@ class AccreditationDocumentAccessController extends Controller
                     'requirement' => $document->requirement,
                     'proyek' => $document->requirement->item->criterion->project_id,
                 ]),
-            'backLabel' => $fromRepository ? 'Repository Bukti' : 'Kembali',
+            'backLabel' => $fromRepository
+                ? __('documents.preview.evidence_repository')
+                : __('documents.preview.back'),
             'fromRepository' => $fromRepository,
         ]);
     }
@@ -120,11 +122,15 @@ class AccreditationDocumentAccessController extends Controller
     ): StreamedResponse {
         /** @var FilesystemAdapter $disk */
         $disk = Storage::disk($document->disk);
-        abort_unless($disk->exists($document->storage_path), Response::HTTP_NOT_FOUND, 'Dokumen tidak tersedia.');
+        abort_unless(
+            $disk->exists($document->storage_path),
+            Response::HTTP_NOT_FOUND,
+            __('documents.errors.document_unavailable'),
+        );
         abort_unless(
             hash_equals(strtolower($document->sha256), $this->storedFileHash($disk, $document->storage_path)),
             Response::HTTP_NOT_FOUND,
-            'Dokumen tidak tersedia.',
+            __('documents.errors.document_unavailable'),
         );
 
         return $disk->response(
@@ -145,7 +151,11 @@ class AccreditationDocumentAccessController extends Controller
     private function storedFileHash(FilesystemAdapter $disk, string $path): string
     {
         $stream = $disk->readStream($path);
-        abort_if($stream === false, Response::HTTP_NOT_FOUND, 'Dokumen tidak tersedia.');
+        abort_if(
+            $stream === false,
+            Response::HTTP_NOT_FOUND,
+            __('documents.errors.document_unavailable'),
+        );
 
         try {
             $context = hash_init('sha256');
