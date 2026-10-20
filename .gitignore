@@ -37,7 +37,7 @@ Thumbs.db
 # Local backup files
 *.bak
 *.sql
-!AMS_APU_DB17T_Full_DDL_CANDIDATE.sql
+!AMS_APU_DB18_LOCKED_DDL.sql
 *.sql.gz
 *.zip
 *.7z

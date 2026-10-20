@@ -1,6 +1,8 @@
 # DB-18 Migration Recovery
 
-DB-18 is locked to `AMS_APU_DB17T_Full_DDL_CANDIDATE.sql` with SHA-256 `b0e37c88f35f666153bbad1c9ee89a61a13f355d8d64c756c5aaeef489fcdd80`.
+DB-18 is approved for controlled Production migration and locked to `AMS_APU_DB18_LOCKED_DDL.sql` with SHA-256 `b9d639eb495324a84fe27160582527f6353843eb477365079fa6f5230f5ca097`, as declared by `App\Database\Db18Schema::SHA256`.
+
+The SQL file is migration input, not a standalone deployment script. Execute it only through the five guarded Laravel migrations after a verified backup and successful read-only inspection.
 
 The migrations support forward-only recovery from these interrupted DDL states:
 

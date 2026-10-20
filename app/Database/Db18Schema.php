@@ -6,7 +6,7 @@ use RuntimeException;
 
 final class Db18Schema
 {
-    public const SHA256 = 'b0e37c88f35f666153bbad1c9ee89a61a13f355d8d64c756c5aaeef489fcdd80';
+    public const SHA256 = 'b9d639eb495324a84fe27160582527f6353843eb477365079fa6f5230f5ca097';
 
     public const MIGRATIONS = [
         '2026_10_19_000001_add_db18_scope_keys_to_phase_one_tables',
@@ -42,7 +42,7 @@ final class Db18Schema
     /** @return list<string> */
     public static function statements(): array
     {
-        $path = base_path('AMS_APU_DB17T_Full_DDL_CANDIDATE.sql');
+        $path = base_path('AMS_APU_DB18_LOCKED_DDL.sql');
 
         if (! is_file($path)) {
             throw new RuntimeException('DB-18 authoritative SQL file is missing. No schema changes were made.');

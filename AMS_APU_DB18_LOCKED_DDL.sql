@@ -1,8 +1,8 @@
--- DB-17T SQL DDL CANDIDATE (STATIC ONLY / NOT EXECUTED / NOT LOCKED)
--- MariaDB 10.4.32 target; NO CREATE/DROP SCHEMA; NO SET foreign_key_checks=0
--- Only use in newly provisioned ISOLATED local test schema after separate approval.
--- Database must contain compatible fixture definitions for existing Phase 1 parent tables.
--- Do not execute against akreditasi_db, Production, or ams_db10_constraint_lab.
+-- DB-18 AUTHORITATIVE SQL DDL LOCK (PRODUCTION APPROVED)
+-- MariaDB 10.4.32 target; NO CREATE/DROP SCHEMA; NO SET foreign_key_checks=0.
+-- Execute only through the five guarded DB-18 Laravel migrations after backup and read-only inspection.
+-- The target database must contain compatible existing Phase 1 parent tables.
+-- Do not execute this file manually or outside the documented DB-18 migration and recovery procedure.
 
 -- Existing Phase 1 prerequisite indexes -- REVIEW ONLY, NOT EXECUTED IN THIS FILE
 -- ALTER TABLE `accreditation_projects` ADD UNIQUE KEY `uq_led_project_instrument` (`id`,`instrument_id`);

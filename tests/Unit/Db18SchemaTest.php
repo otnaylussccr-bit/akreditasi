@@ -10,7 +10,12 @@ class Db18SchemaTest extends TestCase
 {
     public function test_authoritative_sql_is_hash_pinned_and_has_the_locked_statement_order(): void
     {
-        $this->assertSame(Db18Schema::SHA256, hash_file('sha256', base_path('AMS_APU_DB17T_Full_DDL_CANDIDATE.sql')));
+        $path = base_path('AMS_APU_DB18_LOCKED_DDL.sql');
+        $sql = file_get_contents($path);
+
+        $this->assertIsString($sql);
+        $this->assertStringStartsWith('-- DB-18 AUTHORITATIVE SQL DDL LOCK (PRODUCTION APPROVED)', $sql);
+        $this->assertSame(Db18Schema::SHA256, hash_file('sha256', $path));
         $this->assertCount(20, Db18Schema::TABLES);
         $this->assertCount(21, Db18Schema::statements());
 
