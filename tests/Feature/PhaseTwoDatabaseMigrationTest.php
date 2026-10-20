@@ -48,6 +48,17 @@ class PhaseTwoDatabaseMigrationTest extends TestCase
             $this->assertSame('COMPLETE', $completeReport['status']);
             $this->assertSame(Db18Schema::MIGRATIONS, $completeReport['recorded_migrations']);
             $this->assertSchemaMetadata();
+            $this->assertInspectorCommandComplete();
+
+            $repeatOutput = $this->migrate($this->migrationPaths(true));
+
+            $this->assertStringContainsString('Nothing to migrate', $repeatOutput);
+            $this->assertSame($before, $this->phaseOneFingerprint());
+            $this->assertSame($completeReport, DB::usingConnection(
+                self::CONNECTION,
+                fn (): array => Db18SchemaInspector::report(),
+            ));
+            $this->assertInspectorCommandComplete();
             $this->assertIntegrityContracts($phaseOne);
         } finally {
             DB::purge(self::CONNECTION);
@@ -61,10 +72,17 @@ class PhaseTwoDatabaseMigrationTest extends TestCase
         $config = config('database.connections.mariadb');
         $host = (string) ($config['host'] ?? '');
         $port = (int) ($config['port'] ?? 0);
+        $charset = (string) ($config['charset'] ?? '');
+        $collation = (string) ($config['collation'] ?? '');
+        $expectedPort = (int) env('DB18_MARIADB_TEST_PORT', 3306);
+        $expectedSeries = (string) env('DB18_MARIADB_TEST_SERIES', '10.4');
 
-        if (! in_array($host, ['127.0.0.1', 'localhost'], true) || $port !== 3306) {
-            $this->fail('Phase 2 integration tests may only use local MariaDB on port 3306.');
+        if (! in_array($host, ['127.0.0.1', 'localhost'], true) || $port !== $expectedPort) {
+            $this->fail('Phase 2 integration tests may only use the explicitly configured local MariaDB port.');
         }
+
+        $this->assertContains($expectedSeries, ['10.4', '10.11']);
+        $this->assertTrue(Db18SchemaInspector::supportsDatabaseDefaults($charset, $collation));
 
         $admin = new PDO(
             "mysql:host={$host};port={$port};charset=utf8mb4",
@@ -72,14 +90,18 @@ class PhaseTwoDatabaseMigrationTest extends TestCase
             (string) $config['password'],
             [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false],
         );
-        $identity = $admin->query('SELECT DATABASE() AS db, VERSION() AS version, @@foreign_key_checks AS fk')->fetch(PDO::FETCH_OBJ);
+        $identity = $admin->query('SELECT DATABASE() AS db, VERSION() AS version, @@foreign_key_checks AS fk, @@check_constraint_checks AS checks')->fetch(PDO::FETCH_OBJ);
 
         $this->assertNull($identity->db);
-        $this->assertStringStartsWith('10.4.32-MariaDB', $identity->version);
+        $this->assertMatchesRegularExpression(
+            '/^'.preg_quote($expectedSeries, '/').'\.\d+-MariaDB(?:$|[-+~])/i',
+            $identity->version,
+        );
         $this->assertSame(1, (int) $identity->fk);
+        $this->assertSame(1, (int) $identity->checks);
 
         $database = 'ams_phase2_test_'.getmypid().'_'.bin2hex(random_bytes(4));
-        $admin->exec("CREATE DATABASE `{$database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        $admin->exec("CREATE DATABASE `{$database}` CHARACTER SET {$charset} COLLATE {$collation}");
 
         return [$admin, $database];
     }
@@ -122,7 +144,7 @@ class PhaseTwoDatabaseMigrationTest extends TestCase
     }
 
     /** @param list<string> $paths */
-    private function migrate(array $paths): void
+    private function migrate(array $paths): string
     {
         $exitCode = Artisan::call('migrate', [
             '--database' => self::CONNECTION,
@@ -130,8 +152,24 @@ class PhaseTwoDatabaseMigrationTest extends TestCase
             '--realpath' => true,
             '--force' => true,
         ]);
+        $output = Artisan::output();
 
-        $this->assertSame(0, $exitCode, Artisan::output());
+        $this->assertSame(0, $exitCode, $output);
+
+        return $output;
+    }
+
+    private function assertInspectorCommandComplete(): void
+    {
+        $exitCode = Artisan::call('db18:inspect', ['--database' => self::CONNECTION]);
+        $output = Artisan::output();
+
+        $this->assertSame(0, $exitCode, $output);
+        $this->assertStringContainsString('DB18_STATUS=COMPLETE', $output);
+        $this->assertStringContainsString('DB18_TABLES=20/20', $output);
+        $this->assertStringContainsString('DB18_SCOPE_KEYS=3/3', $output);
+        $this->assertStringContainsString('DB18_POINTER_FKS=2/2', $output);
+        $this->assertStringContainsString('DB18_MIGRATIONS=5/5', $output);
     }
 
     /** @return array<string, int> */

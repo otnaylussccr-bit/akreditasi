@@ -38,15 +38,15 @@ final class Db18SchemaInspector
     public static function assertCompatibleDatabase(): array
     {
         if (! in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
-            throw new RuntimeException('DB-18 migrations require MariaDB 10.4.x.');
+            throw new RuntimeException('DB-18 migrations require MariaDB 10.4.x or 10.11.x.');
         }
 
         $identity = DB::selectOne(
-            'SELECT DATABASE() AS database_name, VERSION() AS version, @@foreign_key_checks AS foreign_key_checks',
+            'SELECT DATABASE() AS database_name, VERSION() AS version, @@foreign_key_checks AS foreign_key_checks, @@check_constraint_checks AS check_constraint_checks',
         );
 
         if (! $identity || ! self::supportsServerVersion((string) $identity->version)) {
-            throw new RuntimeException('DB-18 migrations require MariaDB 10.4.x.');
+            throw new RuntimeException('DB-18 migrations require MariaDB 10.4.x or 10.11.x.');
         }
 
         $database = (string) $identity->database_name;
@@ -57,6 +57,10 @@ final class Db18SchemaInspector
 
         if ((int) $identity->foreign_key_checks !== 1) {
             throw new RuntimeException('DB-18 migrations require foreign_key_checks=1.');
+        }
+
+        if ((int) $identity->check_constraint_checks !== 1) {
+            throw new RuntimeException('DB-18 migrations require check_constraint_checks=1.');
         }
 
         $schema = DB::selectOne(
@@ -75,7 +79,7 @@ final class Db18SchemaInspector
 
     public static function supportsServerVersion(string $version): bool
     {
-        return preg_match('/^10\.4\.\d+-MariaDB(?:$|[-+~])/i', $version) === 1;
+        return preg_match('/^10\.(?:4|11)\.\d+-MariaDB(?:$|[-+~])/i', $version) === 1;
     }
 
     public static function supportsDatabaseDefaults(string $characterSet, string $collation): bool

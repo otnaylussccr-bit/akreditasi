@@ -4,6 +4,16 @@ DB-18 is approved for controlled Production migration and locked to `AMS_APU_DB1
 
 The SQL file is migration input, not a standalone deployment script. Execute it only through the five guarded Laravel migrations after a verified backup and successful read-only inspection.
 
+The unchanged locked DDL and all five guarded migrations were validated on MariaDB 10.11.14 in an isolated disposable database. DB-18 permits only the explicitly approved MariaDB 10.4.x and 10.11.x series; other MariaDB and MySQL versions remain blocked.
+
+## Approved Server Series
+
+- MariaDB 10.4.x remains approved by the original DB-18 contract.
+- MariaDB 10.11.x is approved from an isolated MariaDB 10.11.14 proof using the Production database default `utf8mb4_general_ci`.
+- This is an explicit series allowlist, not a minimum-version rule. MariaDB 10.5 through 10.10, MariaDB 11.x, and MySQL remain unsupported until separately proven.
+
+The MariaDB 10.11.14 proof executed the unchanged locked SQL, all five guarded migrations, interruption recovery, 20 table definitions, 66 foreign keys, 23 CHECK constraints, three indexed virtual generated columns, active-only uniqueness and revocation behavior, both circular pointer constraints, the read-only inspector, and a repeat no-op migration. The final inspector result was `COMPLETE` with `20/20` tables, `3/3` scope keys, `2/2` pointer foreign keys, and `5/5` migration records.
+
 The migrations support forward-only recovery from these interrupted DDL states:
 
 - A prefix of the three Phase 1 scope keys exists and each existing key exactly matches the LOCK.
@@ -26,7 +36,7 @@ The command reports the database and server identity, schema status, table count
 ## Forward Recovery
 
 1. Preserve the inspector output and a database backup or snapshot.
-2. Confirm the selected connection is the intended database, MariaDB is 10.4.x, `foreign_key_checks=1`, and the database default is `utf8mb4_general_ci` or `utf8mb4_unicode_ci` with the `utf8mb4` character set.
+2. Confirm the selected connection is the intended database, MariaDB is an approved 10.4.x or 10.11.x release, `foreign_key_checks=1`, `check_constraint_checks=1`, and the database default is `utf8mb4_general_ci` or `utf8mb4_unicode_ci` with the `utf8mb4` character set.
 3. Confirm `DB18_SHA256` matches the locked checksum above.
 4. Run the normal migration command once against that explicit connection.
 5. Run `db18:inspect` again and require `DB18_STATUS=COMPLETE`, `DB18_TABLES=20/20`, `DB18_SCOPE_KEYS=3/3`, `DB18_POINTER_FKS=2/2`, and `DB18_MIGRATIONS=5/5`.

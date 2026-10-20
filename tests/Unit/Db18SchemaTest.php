@@ -26,11 +26,15 @@ class Db18SchemaTest extends TestCase
         $this->assertStringStartsWith('ALTER TABLE `accreditation_led_assessments`', Db18Schema::statements()[20]);
     }
 
-    public function test_compatibility_gate_accepts_only_mariadb_10_4_versions(): void
+    public function test_compatibility_gate_accepts_only_approved_mariadb_series(): void
     {
         $this->assertTrue(Db18SchemaInspector::supportsServerVersion('10.4.0-MariaDB'));
         $this->assertTrue(Db18SchemaInspector::supportsServerVersion('10.4.32-MariaDB-1:10.4.32+maria~ubu2004'));
+        $this->assertTrue(Db18SchemaInspector::supportsServerVersion('10.11.0-MariaDB'));
+        $this->assertTrue(Db18SchemaInspector::supportsServerVersion('10.11.14-MariaDB-0+deb12u2'));
         $this->assertFalse(Db18SchemaInspector::supportsServerVersion('10.5.0-MariaDB'));
+        $this->assertFalse(Db18SchemaInspector::supportsServerVersion('10.10.8-MariaDB'));
+        $this->assertFalse(Db18SchemaInspector::supportsServerVersion('11.4.5-MariaDB'));
         $this->assertFalse(Db18SchemaInspector::supportsServerVersion('8.0.36'));
         $this->assertFalse(Db18SchemaInspector::supportsServerVersion('10.4.32'));
     }
