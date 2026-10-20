@@ -7,6 +7,7 @@ use App\Models\AccreditationLedAssessmentCycle;
 use App\Services\AccreditationProjectContextService;
 use App\Services\LedAssessmentAuthorizationService;
 use App\Services\LedAssessmentDashboardService;
+use App\Services\OperationalModuleAccessService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -23,11 +24,11 @@ class Dashboard extends Component
     public function mount(LedAssessmentAuthorizationService $authorization, AccreditationProjectContextService $context): void
     {
         abort_unless(Auth::user()->can('dashboard.view'), 403);
-        $projects = $context->ordered($authorization->accessibleProjects(Auth::user())->get());
+        $projects = $context->ordered($authorization->dashboardProjects(Auth::user())->get());
         $project = $context->resolve($projects, $this->projectId);
         abort_unless($project, 403);
         $this->projectId = $project->id;
-        $cycles = $this->reportableCycles($project->id, $authorization);
+        $cycles = $authorization->reportableCycles(Auth::user(), $project->id)->orderByDesc('cycle_number')->get();
         $cycle = $this->cycleId ? $cycles->firstWhere('id', $this->cycleId) : $cycles->first();
         abort_if($this->cycleId !== null && ! $cycle, 403);
         $this->cycleId = $cycle?->id;
@@ -35,26 +36,30 @@ class Dashboard extends Component
 
     public function selectProject(int $projectId, LedAssessmentAuthorizationService $authorization, AccreditationProjectContextService $context): void
     {
-        $project = $authorization->accessibleProjects(Auth::user())->whereKey($projectId)->first();
+        $project = $authorization->dashboardProjects(Auth::user())->whereKey($projectId)->first();
         abort_unless($project, 403);
-        $context->select($authorization->accessibleProjects(Auth::user())->get(), $projectId);
+        $context->select($authorization->dashboardProjects(Auth::user())->get(), $projectId);
         $this->projectId = $project->id;
-        $this->cycleId = $this->reportableCycles($project->id, $authorization)->first()?->id;
+        $this->cycleId = $authorization->reportableCycles(Auth::user(), $project->id)->orderByDesc('cycle_number')->value('id');
     }
 
     public function selectCycle(int $cycleId, LedAssessmentAuthorizationService $authorization): void
     {
-        $cycle = $this->reportableCycles((int) $this->projectId, $authorization)->firstWhere('id', $cycleId);
+        $cycle = $authorization->reportableCycles(Auth::user(), (int) $this->projectId)->find($cycleId);
         abort_unless($cycle, 403);
         $this->cycleId = $cycle->id;
     }
 
-    public function render(LedAssessmentAuthorizationService $authorization, AccreditationProjectContextService $context, LedAssessmentDashboardService $dashboard)
-    {
-        $projects = $context->ordered($authorization->accessibleProjects(Auth::user())->get());
+    public function render(
+        LedAssessmentAuthorizationService $authorization,
+        AccreditationProjectContextService $context,
+        LedAssessmentDashboardService $dashboard,
+        OperationalModuleAccessService $operational,
+    ) {
+        $projects = $context->ordered($authorization->dashboardProjects(Auth::user())->get());
         $project = $projects->firstWhere('id', $this->projectId);
         abort_unless($project, 403);
-        $cycles = $this->reportableCycles($project->id, $authorization);
+        $cycles = $authorization->reportableCycles(Auth::user(), $project->id)->orderByDesc('cycle_number')->get();
         $cycle = $this->cycleId ? $cycles->firstWhere('id', $this->cycleId) : $cycles->first();
         abort_if($this->cycleId !== null && ! $cycle, 403);
 
@@ -64,23 +69,8 @@ class Dashboard extends Component
             'cycle' => $cycle,
             'cycles' => $cycles,
             'hasAnyCycle' => AccreditationLedAssessmentCycle::query()->where('project_id', $project->id)->exists(),
-            'canOpenAssessment' => ! Auth::user()->hasExactRoles('Viewer')
-                || Auth::user()->ledAssessorAssignments()
-                    ->whereHas('cycle', fn ($query) => $query->where('project_id', $project->id))
-                    ->whereNull('revoked_at')
-                    ->exists(),
+            'canOpenAssessment' => $operational->allows(Auth::user(), 'led-assessment.index'),
             'summary' => $cycle ? $dashboard->summary($cycle, Auth::user()) : null,
         ])->title(__('led_assessment.meta.dashboard'));
-    }
-
-    private function reportableCycles(int $projectId, LedAssessmentAuthorizationService $authorization)
-    {
-        return AccreditationLedAssessmentCycle::query()
-            ->where('project_id', $projectId)
-            ->whereIn('status', ['active', 'closed', 'finalized'])
-            ->orderByDesc('cycle_number')
-            ->get()
-            ->filter(fn (AccreditationLedAssessmentCycle $cycle): bool => $authorization->canViewCycle(Auth::user(), $cycle))
-            ->values();
     }
 }

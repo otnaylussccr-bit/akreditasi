@@ -488,13 +488,11 @@ class Index extends Component
         $user = Auth::user();
         $authorization = app(AccreditationAuthorizationService::class);
 
-        return $authorization->accessibleProjects($user)
+        return $authorization->manageableProjects($user)
             ->with(['studyProgram', 'instrument'])
             ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
             ->orderBy('final_deadline')
-            ->get()
-            ->filter(fn (AccreditationProject $project): bool => $authorization->canManageProject($user, $project))
-            ->values();
+            ->get();
     }
 
     private function authorizedProject(): AccreditationProject

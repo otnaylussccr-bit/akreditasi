@@ -448,7 +448,7 @@ class DashboardTest extends TestCase
         ]);
     }
 
-    public function test_viewer_sidebar_is_non_navigable_and_operational_routes_and_actions_stay_forbidden(): void
+    public function test_viewer_sidebar_omits_unauthorized_modules_and_direct_access_stays_forbidden(): void
     {
         $project = $this->project('VIEWER-NAV', '2026-10-30', 'APU-BIOTEK-2026');
         $criterion = $this->criterion($project, 'A', 1, 'Kriteria A');
@@ -461,24 +461,17 @@ class DashboardTest extends TestCase
         $response = $this->get(route('dashboard'))
             ->assertOk()
             ->assertSee('href="'.route('dashboard', ['proyek' => $project->id]).'"', false)
-            ->assertSee('href="'.route('profile.password').'"', false);
+            ->assertSee('href="'.route('profile.password').'"', false)
+            ->assertDontSee('data-viewer-disabled="true"', false);
         $html = $response->getContent();
 
-        $this->assertSame(6, substr_count($html, 'data-viewer-disabled="true"'));
-        preg_match_all('/<span[^>]*data-viewer-disabled="true"[^>]*>/', $html, $disabledItems);
-        $this->assertCount(6, $disabledItems[0]);
-
-        foreach ($disabledItems[0] as $disabledItem) {
-            $this->assertStringNotContainsString('href=', $disabledItem);
-            $this->assertStringNotContainsString('wire:', $disabledItem);
-            $this->assertStringNotContainsString('tabindex=', $disabledItem);
-        }
-
-        foreach (['Input Dokumen', 'Repository Bukti', 'Verifikasi Dokumen', 'Follow Up LED', 'Aktivitas Tim', 'Pengaturan'] as $label) {
-            $this->assertStringContainsString("aria-label=\"{$label} - Akses terbatas untuk role Viewer\"", $html);
+        foreach (['Dashboard Penilaian', 'Input Dokumen', 'Repository Bukti', 'Verifikasi Dokumen', 'Follow Up LED', 'Penilaian LED', 'Konfigurasi LED', 'Aktivitas Tim', 'Administrasi'] as $label) {
+            $this->assertStringNotContainsString('data-locale-id="'.$label.'"', $html);
         }
 
         foreach ([
+            route('led-assessment.dashboard'),
+            route('led-assessment.index'),
             route('documents.index'),
             route('documents.upload', $requirement),
             route('documents.preview', $document),
@@ -487,6 +480,7 @@ class DashboardTest extends TestCase
             route('verifications.index'),
             route('follow-up-led.index'),
             route('team-activity.index'),
+            route('administration.led-setup.index'),
             route('administration.users.index'),
             route('administration.roles.index'),
         ] as $protectedUrl) {

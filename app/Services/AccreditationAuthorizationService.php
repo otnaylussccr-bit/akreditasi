@@ -163,6 +163,28 @@ class AccreditationAuthorizationService
             && ($user->hasRole('Super Admin') || $this->isActiveProjectManager($user, $project));
     }
 
+    public function manageableProjects(User $user): Builder
+    {
+        $query = $this->accessibleProjects($user);
+
+        if (! $user->is_active || ! $user->can('project.manage')) {
+            return $query->whereKey([]);
+        }
+
+        if ($user->hasRole('Super Admin')) {
+            return $query;
+        }
+
+        if (! $user->hasRole('Project Manager')) {
+            return $query->whereKey([]);
+        }
+
+        return $query->whereHas('memberships', fn (Builder $memberships) => $memberships
+            ->where('user_id', $user->id)
+            ->where('membership_role', 'project_manager')
+            ->where('is_active', true));
+    }
+
     public function canManageAssignments(User $user, AccreditationProject $project): bool
     {
         return $user->can('assignment.manage')

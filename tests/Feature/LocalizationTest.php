@@ -26,11 +26,54 @@ class LocalizationTest extends TestCase
         ])->assertRedirect('/login?from=expired')
             ->assertSessionHas('locale', 'id');
 
-        $this->get('/login?from=expired')
+        $indonesian = $this->get('/login?from=expired')
             ->assertOk()
             ->assertSee('<html lang="id">', false)
             ->assertSee('Masuk ke akun Anda')
             ->assertSee('English');
+        $this->assertMatchesRegularExpression('/data-locale-current[^>]*>Bahasa Indonesia<\/span>/', $indonesian->getContent());
+        $this->assertMatchesRegularExpression('/data-locale-code="id"[^>]+aria-selected="true"/s', $indonesian->getContent());
+        $this->assertMatchesRegularExpression('/data-locale-code="en"[^>]+aria-selected="false"/s', $indonesian->getContent());
+    }
+
+    public function test_locale_switcher_is_a_single_collapsed_disclosure_with_two_accessible_options(): void
+    {
+        $response = $this->get('/login?proyek=42&siklus=7&indikator=3')->assertOk();
+        $html = $response->getContent();
+
+        $this->assertSame(1, preg_match_all('/<div[^>]+data-locale-switcher[^>]*>/s', $html));
+        $this->assertSame(1, preg_match_all('/<button[^>]+data-locale-trigger[^>]+aria-expanded="false"[^>]*>/s', $html));
+        $this->assertSame(1, preg_match_all('/<div[^>]+role="listbox"[^>]+data-locale-options[^>]+hidden[^>]*>/s', $html));
+        $this->assertSame(2, preg_match_all('/<button[^>]+data-locale-option[^>]*>/s', $html));
+        $this->assertMatchesRegularExpression('/data-locale-code="en"[^>]+aria-selected="true"/s', $html);
+        $this->assertMatchesRegularExpression('/data-locale-code="id"[^>]+aria-selected="false"/s', $html);
+        $this->assertStringContainsString('value="/login?proyek=42&amp;siklus=7&amp;indikator=3"', $html);
+
+        $user = User::query()->create([
+            'name' => 'Single Switcher User',
+            'email' => 'single-switcher@example.test',
+            'password' => Hash::make('ValidPassword123'),
+            'is_active' => true,
+        ]);
+        $appHtml = $this->actingAs($user)
+            ->get(route('profile.password'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(1, preg_match_all('/<div[^>]+data-locale-switcher[^>]*>/s', $appHtml));
+    }
+
+    public function test_locale_switcher_declares_keyboard_focus_and_dismissal_behavior_once(): void
+    {
+        $html = $this->get(route('login'))->assertOk()->getContent();
+
+        foreach (['ArrowDown', 'ArrowUp', 'Home', 'End', 'Escape', 'focus()', 'aria-expanded'] as $contract) {
+            $this->assertStringContainsString($contract, $html);
+        }
+
+        $this->assertSame(1, substr_count($html, "document.addEventListener('submit'"));
+        $this->assertSame(1, substr_count($html, "document.addEventListener('click'"));
+        $this->assertSame(1, substr_count($html, "document.addEventListener('keydown'"));
     }
 
     public function test_locale_switch_rejects_unsupported_values_and_external_redirects(): void

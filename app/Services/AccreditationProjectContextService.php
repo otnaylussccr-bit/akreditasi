@@ -18,24 +18,27 @@ class AccreditationProjectContextService
         }
 
         $rememberedProjectId = $this->currentProjectId();
+        $project = $this->preferred($projects);
 
-        if ($rememberedProjectId !== null) {
-            $rememberedProject = $projects->firstWhere('id', $rememberedProjectId);
-
-            if ($rememberedProject) {
-                return $rememberedProject;
-            }
-
+        if ($rememberedProjectId !== null && ! $projects->contains('id', $rememberedProjectId)) {
             session()->forget(self::SESSION_KEY);
         }
-
-        $project = $projects->firstWhere('status', 'active') ?? $projects->first();
 
         if ($project) {
             $this->synchronize($project);
         }
 
         return $project;
+    }
+
+    public function preferred(Collection $authorizedProjects): ?AccreditationProject
+    {
+        $projects = $this->ordered($authorizedProjects);
+        $rememberedProjectId = $this->currentProjectId();
+
+        return ($rememberedProjectId !== null ? $projects->firstWhere('id', $rememberedProjectId) : null)
+            ?? $projects->firstWhere('status', 'active')
+            ?? $projects->first();
     }
 
     public function select(Collection $authorizedProjects, int $projectId): AccreditationProject

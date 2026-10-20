@@ -272,14 +272,26 @@ button, input { font: inherit; }
 .login-form .field-error { margin: -12px 0 17px; color: #b42318; font-size: .82rem; }
 .login-status { margin-bottom: 22px; padding: 11px 13px; border: 1px solid #d8c986; border-radius: 5px; color: #5e4c17; background: #fff9df; font-size: .82rem; line-height: 1.45; }
 .password-control { position: relative; }
-.locale-switcher { display: inline-flex; align-items: center; gap: 5px; color: #758196; font-size: .64rem; white-space: nowrap; }
-.locale-switcher form { margin: 0; }
-.locale-switcher button { padding: 4px 5px; border: 0; color: var(--navy-800); background: transparent; font: inherit; font-weight: 750; cursor: pointer; }
-.locale-switcher button:hover, .locale-switcher button:focus-visible { color: var(--navy-950); text-decoration: underline; }
-.locale-switcher button[aria-current="true"] { color: #8a6711; cursor: default; text-decoration: none; }
+.locale-switcher { position: relative; display: inline-block; flex: 0 0 auto; color: var(--navy-800); font-size: .76rem; white-space: nowrap; }
+.locale-switcher-trigger { display: flex; width: 172px; min-height: 40px; align-items: center; gap: 9px; padding: 0 11px; border: 1px solid #cfd6e1; border-radius: 6px; color: var(--navy-800); background: white; font: inherit; font-weight: 750; cursor: pointer; transition: border-color .2s, box-shadow .2s, color .2s; }
+.locale-switcher-trigger:hover { border-color: #aeb9ca; color: var(--navy-950); }
+.locale-switcher-trigger:focus-visible, .locale-switcher-option:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.locale-switcher-globe { width: 19px; height: 19px; flex: 0 0 auto; }
+.locale-switcher-current { min-width: 0; flex: 1; overflow: hidden; text-align: left; text-overflow: ellipsis; }
+.locale-switcher-chevron { width: 15px; height: 15px; flex: 0 0 auto; transition: transform .2s; }
+.locale-switcher-trigger[aria-expanded="true"] .locale-switcher-chevron { transform: rotate(180deg); }
+.locale-switcher-options { position: absolute; z-index: 70; top: calc(100% + 7px); right: 0; width: 100%; min-width: 190px; padding: 6px; border: 1px solid #cfd6e1; border-radius: 7px; background: white; box-shadow: 0 14px 34px rgba(7, 23, 47, .18); }
+.locale-switcher-options[hidden] { display: none; }
+.locale-switcher-options form { margin: 0; }
+.locale-switcher-option { display: flex; width: 100%; min-height: 39px; align-items: center; justify-content: space-between; gap: 14px; padding: 8px 10px; border: 0; border-radius: 4px; color: #33425a; background: transparent; font: inherit; font-weight: 650; text-align: left; cursor: pointer; }
+.locale-switcher-option:hover, .locale-switcher-option:focus-visible { color: var(--navy-950); background: #f2f5f9; }
+.locale-switcher-option[aria-selected="true"] { color: #735810; background: #fff9e5; }
+.locale-switcher-option svg { width: 17px; height: 17px; flex: 0 0 auto; opacity: 0; }
+.locale-switcher-option[aria-selected="true"] svg { opacity: 1; }
 .locale-switcher-status { position: absolute; width: 1px; height: 1px; overflow: hidden; margin: -1px; padding: 0; border: 0; clip: rect(0 0 0 0); white-space: nowrap; }
-.auth-locale-switcher { position: fixed; top: 18px; right: 20px; z-index: 5; padding: 5px 8px; border: 1px solid rgba(255,255,255,.28); border-radius: 6px; background: rgba(7,23,47,.72); backdrop-filter: blur(8px); }
-.auth-locale-switcher .locale-switcher, .auth-locale-switcher .locale-switcher button { color: white; }
+.auth-locale-switcher { position: fixed; z-index: 5; top: 18px; right: 20px; }
+.auth-locale-switcher .locale-switcher-trigger { border-color: rgba(255,255,255,.32); color: white; background: rgba(7,23,47,.78); box-shadow: 0 8px 24px rgba(2,10,24,.18); backdrop-filter: blur(8px); }
+.auth-locale-switcher .locale-switcher-trigger:hover { border-color: rgba(255,255,255,.58); color: white; }
 .password-control input { width: 100%; padding-right: 52px !important; }
 .password-visibility-toggle { position: absolute; top: 50%; right: 8px; display: grid; width: 36px; height: 36px; place-items: center; padding: 0; transform: translateY(-50%); border: 0; border-radius: 5px; color: var(--navy-800); background: transparent; cursor: pointer; }
 .password-visibility-toggle:hover { background: #eef3f9; }
@@ -1993,6 +2005,7 @@ button, input { font: inherit; }
     .login-heading h2 { font-size: 1.8rem; }
     .topbar-title, .user-copy { display: none; }
     .logout-button { margin-left: 2px; }
+    .locale-switcher-trigger { width: 156px; }
     .main-content { padding: 28px 17px; }
     .setup-bulk-panel, .setup-bulk-panel + .setup-bulk-panel { margin-right: 12px; margin-left: 12px; }
     .setup-bulk-fields, .setup-bulk-fields.mapping { grid-template-columns: 1fr; }
@@ -2125,4 +2138,15 @@ button, input { font: inherit; }
     .verification-confirmation > div { flex-direction: column-reverse; }
     .verification-confirmation button { width: 100%; }
     .verification-preview-frame, .verification-preview-image, .verification-preview-fallback, .verification-office-preview-state { min-height: 400px; }
+}
+
+@media (max-width: 420px) {
+    .topbar { padding-right: 8px; padding-left: 8px; }
+    .menu-button { margin-right: 6px; }
+    .user-area { gap: 4px; }
+    .user-profile-link { padding: 4px; }
+    .logout-button { margin-left: 0; padding: 7px 8px; }
+    .locale-switcher-trigger { width: 140px; gap: 6px; padding-inline: 8px; font-size: .7rem; }
+    .locale-switcher-options { min-width: 174px; }
+    .auth-locale-switcher { top: 10px; right: 10px; }
 }

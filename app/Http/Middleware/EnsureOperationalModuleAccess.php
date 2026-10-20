@@ -2,22 +2,19 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\OperationalModuleAccessService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureOperationalModuleAccess
 {
+    public function __construct(private readonly OperationalModuleAccessService $access) {}
+
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        if ($user?->hasExactRoles('Viewer')) {
-            $hasLedAssignment = $request->routeIs('led-assessment.index')
-                && $user->ledAssessorAssignments()
-                    ->whereNull('revoked_at')
-                    ->exists();
-            abort_unless($hasLedAssignment, 403);
-        }
+        abort_unless($user && $this->access->allows($user, (string) $request->route()?->getName()), 403);
 
         return $next($request);
     }
