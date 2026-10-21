@@ -448,7 +448,7 @@ class DashboardTest extends TestCase
         ]);
     }
 
-    public function test_viewer_sidebar_omits_unauthorized_modules_and_direct_access_stays_forbidden(): void
+    public function test_viewer_sidebar_exposes_only_read_only_dashboards_and_direct_operations_stay_forbidden(): void
     {
         $project = $this->project('VIEWER-NAV', '2026-10-30', 'APU-BIOTEK-2026');
         $criterion = $this->criterion($project, 'A', 1, 'Kriteria A');
@@ -461,16 +461,16 @@ class DashboardTest extends TestCase
         $response = $this->get(route('dashboard'))
             ->assertOk()
             ->assertSee('href="'.route('dashboard', ['proyek' => $project->id]).'"', false)
+            ->assertSee('href="'.route('led-assessment.dashboard', ['proyek' => $project->id]).'"', false)
             ->assertSee('href="'.route('profile.password').'"', false)
             ->assertDontSee('data-viewer-disabled="true"', false);
         $html = $response->getContent();
 
-        foreach (['Dashboard Penilaian', 'Input Dokumen', 'Repository Bukti', 'Verifikasi Dokumen', 'Follow Up LED', 'Penilaian LED', 'Konfigurasi LED', 'Aktivitas Tim', 'Administrasi'] as $label) {
+        foreach (['Input Dokumen', 'Repository Bukti', 'Verifikasi Dokumen', 'Follow Up LED', 'Penilaian LED', 'Konfigurasi LED', 'Aktivitas Tim', 'Administrasi'] as $label) {
             $this->assertStringNotContainsString('data-locale-id="'.$label.'"', $html);
         }
 
         foreach ([
-            route('led-assessment.dashboard'),
             route('led-assessment.index'),
             route('documents.index'),
             route('documents.upload', $requirement),
@@ -488,6 +488,7 @@ class DashboardTest extends TestCase
             $this->get($protectedUrl)->assertForbidden();
         }
 
+        $this->get(route('led-assessment.dashboard', ['proyek' => $project->id]))->assertOk();
         $this->get(route('profile.password'))->assertOk();
         Livewire::test(Upload::class, ['requirement' => $requirement])->assertForbidden();
     }

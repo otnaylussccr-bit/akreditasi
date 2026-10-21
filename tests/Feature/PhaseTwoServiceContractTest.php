@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\Administration\Users\Index as UserManagementIndex;
 use App\Livewire\LedAssessment\Dashboard as LedAssessmentDashboard;
 use App\Livewire\LedAssessment\Index as LedAssessmentIndex;
+use App\Models\AccreditationActivityLog;
 use App\Models\AccreditationCriterion;
 use App\Models\AccreditationDocument;
 use App\Models\AccreditationDocumentRequirement;
@@ -20,6 +21,7 @@ use App\Models\AccreditationLedRubric;
 use App\Models\AccreditationProject;
 use App\Models\AccreditationProjectMember;
 use App\Models\AccreditationReviewSubmission;
+use App\Models\AdministrativeAuditLog;
 use App\Models\StudyProgram;
 use App\Models\User;
 use App\Services\LedAssessmentAuthorizationService;
@@ -1041,6 +1043,64 @@ class PhaseTwoServiceContractTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_phase_one_viewer_gets_full_read_only_live_monitoring_without_a_led_assignment(): void
+    {
+        $domain = $this->domain('Viewer', 'Viewer');
+        $monitor = $this->user('Viewer');
+        AccreditationProjectMember::create([
+            'project_id' => $domain['project']->id,
+            'user_id' => $monitor->id,
+            'membership_role' => 'viewer',
+            'is_active' => true,
+        ]);
+        $secondIndicator = AccreditationLedIndicator::create([
+            'instrument_version_id' => $domain['version']->id,
+            'indicator_number' => 2,
+            'criterion_code' => 'B',
+            'title' => 'Indikator monitoring lintas assignment',
+            'position' => 2,
+            'is_assessable' => true,
+        ]);
+        AccreditationLedAssessment::create([
+            'cycle_id' => $domain['cycle']->id,
+            'project_id' => $domain['project']->id,
+            'instrument_version_id' => $domain['version']->id,
+            'indicator_id' => $secondIndicator->id,
+        ]);
+        $this->actingAs($monitor);
+
+        $component = Livewire::withQueryParams([
+            'proyek' => $domain['project']->id,
+            'siklus' => $domain['cycle']->id,
+        ])->test(LedAssessmentDashboard::class)
+            ->assertSee('wire:poll.30s.visible="refreshDashboard"', false)
+            ->assertSee('Pembaruan otomatis setiap 30 detik')
+            ->assertSee($domain['indicator']->title)
+            ->assertSee($secondIndicator->title)
+            ->assertDontSee('Buka Penilaian');
+
+        $this->assertSame($domain['project']->id, $component->get('projectId'));
+        $this->assertSame($domain['cycle']->id, $component->get('cycleId'));
+        $this->assertSame(2, $component->viewData('summary')['total']);
+        $initialUpdatedAt = $component->get('lastUpdated');
+        $activityCount = AccreditationActivityLog::query()->count();
+        $auditCount = AdministrativeAuditLog::query()->count();
+        $this->travel(31)->seconds();
+
+        $component
+            ->call('refreshDashboard')
+            ->assertHasNoErrors()
+            ->assertSee('Terakhir diperbarui');
+
+        $this->assertNotSame($initialUpdatedAt, $component->get('lastUpdated'));
+        $this->assertSame($activityCount, AccreditationActivityLog::query()->count());
+        $this->assertSame($auditCount, AdministrativeAuditLog::query()->count());
+        $this->get(route('led-assessment.index', [
+            'proyek' => $domain['project']->id,
+            'siklus' => $domain['cycle']->id,
+        ]))->assertForbidden();
+    }
+
     public function test_user_management_shows_active_and_revoked_led_history_separately_from_phase_one_scope(): void
     {
         $domain = $this->domain('Viewer', 'Viewer');
@@ -1101,7 +1161,11 @@ class PhaseTwoServiceContractTest extends TestCase
         Livewire::withQueryParams(['proyek' => $domain['project']->id])
             ->test(LedAssessmentDashboard::class)
             ->assertSee('Hanya acuan yang disetujui')
-            ->assertSee('Belum approved');
+            ->assertSee('Belum approved')
+            ->assertSee(route('led-assessment.index', [
+                'proyek' => $domain['project']->id,
+                'siklus' => $domain['cycle']->id,
+            ]));
     }
 
     public function test_draft_and_closed_cycles_are_read_only_while_active_cycle_keeps_assignment_authorization(): void
@@ -1132,6 +1196,15 @@ class PhaseTwoServiceContractTest extends TestCase
             'justification' => 'Penilaian sah pada cycle aktif.',
         ]);
         $this->assertSame('draft', $revision->status);
+
+        $domain['cycle']->update(['status' => 'draft']);
+        Livewire::withQueryParams(['proyek' => $domain['project']->id, 'siklus' => $domain['cycle']->id])
+            ->test(LedAssessmentDashboard::class)
+            ->assertSee('Konfigurasi penilaian sedang berlangsung')
+            ->assertSee('Draft')
+            ->assertDontSee('Penilaian sah pada cycle aktif.')
+            ->assertDontSee('Rata-rata approved')
+            ->assertDontSeeHtml('data-approved-score="true"');
 
         $domain['cycle']->update(['status' => 'closed']);
         try {

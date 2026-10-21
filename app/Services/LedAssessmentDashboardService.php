@@ -16,7 +16,7 @@ class LedAssessmentDashboardService
             ->with(['indicator', 'currentApprovedRevision.rubric'])
             ->orderByRaw('(select position from accreditation_led_indicators where accreditation_led_indicators.id = accreditation_led_assessments.indicator_id)');
 
-        if (! $this->authorization->hasCycleOversight($user, $cycle)) {
+        if (! $this->authorization->hasProjectMonitoringScope($user, $cycle->project)) {
             $assessmentsQuery->whereHas('cycle.assignments', fn ($assignments) => $assignments
                 ->whereColumn('accreditation_led_assessor_assignments.indicator_id', 'accreditation_led_assessments.indicator_id')
                 ->where('user_id', $user->id)

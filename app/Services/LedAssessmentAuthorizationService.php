@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class LedAssessmentAuthorizationService
 {
-    private const REPORTABLE_STATUSES = ['active', 'closed', 'finalized'];
+    private const REPORTABLE_STATUSES = ['draft', 'active', 'closed', 'finalized'];
 
     public function __construct(
         private readonly AccreditationAuthorizationService $projects,
@@ -56,29 +56,11 @@ class LedAssessmentAuthorizationService
 
     public function dashboardProjects(User $user): Builder
     {
-        $query = AccreditationProject::query();
-
-        if (! $user->is_active || ! $user->can('dashboard.view') || ! $user->can('project.view')) {
-            return $query->whereKey([]);
+        if (! $user->can('dashboard.view')) {
+            return AccreditationProject::query()->whereKey([]);
         }
 
-        if ($user->hasRole('Super Admin')) {
-            return $query;
-        }
-
-        return $query->where(function (Builder $scope) use ($user): void {
-            if ($user->hasRole('Project Manager')) {
-                $scope->orWhereHas('memberships', fn (Builder $memberships) => $memberships
-                    ->where('user_id', $user->id)
-                    ->where('membership_role', 'project_manager')
-                    ->where('is_active', true));
-            }
-
-            $scope->orWhereHas('assessmentCycles', fn (Builder $cycles) => $cycles
-                ->whereHas('assignments', fn (Builder $assignments) => $assignments
-                    ->where('user_id', $user->id)
-                    ->whereNull('revoked_at')));
-        });
+        return $this->accessibleProjects($user);
     }
 
     public function reportableCycles(User $user, int $projectId): Builder
@@ -91,7 +73,9 @@ class LedAssessmentAuthorizationService
             return $query->whereKey([]);
         }
 
-        if ($user->hasRole('Super Admin')) {
+        $project = AccreditationProject::query()->find($projectId);
+
+        if ($project !== null && $this->hasProjectMonitoringScope($user, $project)) {
             return $query;
         }
 
@@ -99,13 +83,6 @@ class LedAssessmentAuthorizationService
             $scope->whereHas('assignments', fn (Builder $assignments) => $assignments
                 ->where('user_id', $user->id)
                 ->whereNull('revoked_at'));
-
-            if ($user->hasRole('Project Manager')) {
-                $scope->orWhereHas('project.memberships', fn (Builder $memberships) => $memberships
-                    ->where('user_id', $user->id)
-                    ->where('membership_role', 'project_manager')
-                    ->where('is_active', true));
-            }
         });
     }
 
@@ -127,6 +104,13 @@ class LedAssessmentAuthorizationService
         return $user->is_active
             && $user->can('project.view')
             && ($user->hasRole('Super Admin') || $this->projects->isActiveProjectManager($user, $cycle->project));
+    }
+
+    public function hasProjectMonitoringScope(User $user, AccreditationProject $project): bool
+    {
+        return $user->is_active
+            && $user->can('dashboard.view')
+            && $this->projects->canViewProject($user, $project);
     }
 
     public function canViewAssessment(User $user, AccreditationLedAssessment $assessment): bool

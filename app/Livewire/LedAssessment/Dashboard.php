@@ -3,7 +3,6 @@
 namespace App\Livewire\LedAssessment;
 
 use App\Livewire\Component;
-use App\Models\AccreditationLedAssessmentCycle;
 use App\Services\AccreditationProjectContextService;
 use App\Services\LedAssessmentAuthorizationService;
 use App\Services\LedAssessmentDashboardService;
@@ -21,6 +20,8 @@ class Dashboard extends Component
     #[Url(as: 'siklus', except: null)]
     public ?int $cycleId = null;
 
+    public string $lastUpdated = '';
+
     public function mount(LedAssessmentAuthorizationService $authorization, AccreditationProjectContextService $context): void
     {
         abort_unless(Auth::user()->can('dashboard.view'), 403);
@@ -32,6 +33,7 @@ class Dashboard extends Component
         $cycle = $this->cycleId ? $cycles->firstWhere('id', $this->cycleId) : $cycles->first();
         abort_if($this->cycleId !== null && ! $cycle, 403);
         $this->cycleId = $cycle?->id;
+        $this->lastUpdated = now()->toIso8601String();
     }
 
     public function selectProject(int $projectId, LedAssessmentAuthorizationService $authorization, AccreditationProjectContextService $context): void
@@ -48,6 +50,22 @@ class Dashboard extends Component
         $cycle = $authorization->reportableCycles(Auth::user(), (int) $this->projectId)->find($cycleId);
         abort_unless($cycle, 403);
         $this->cycleId = $cycle->id;
+    }
+
+    public function refreshDashboard(LedAssessmentAuthorizationService $authorization): void
+    {
+        $user = Auth::user();
+        abort_unless($user !== null, 403);
+
+        $project = $authorization->dashboardProjects($user)->whereKey($this->projectId)->first();
+        abort_unless($project, 403);
+
+        if ($this->cycleId !== null) {
+            $cycle = $authorization->reportableCycles($user, $project->id)->find($this->cycleId);
+            abort_unless($cycle, 403);
+        }
+
+        $this->lastUpdated = now()->toIso8601String();
     }
 
     public function render(
@@ -68,9 +86,10 @@ class Dashboard extends Component
             'project' => $project,
             'cycle' => $cycle,
             'cycles' => $cycles,
-            'hasAnyCycle' => AccreditationLedAssessmentCycle::query()->where('project_id', $project->id)->exists(),
             'canOpenAssessment' => $operational->allows(Auth::user(), 'led-assessment.index'),
-            'summary' => $cycle ? $dashboard->summary($cycle, Auth::user()) : null,
+            'summary' => $cycle !== null && $cycle->status !== 'draft'
+                ? $dashboard->summary($cycle, Auth::user())
+                : null,
         ])->title(__('led_assessment.meta.dashboard'));
     }
 }

@@ -65,7 +65,7 @@ class SidebarNavigationTest extends TestCase
         }
     }
 
-    public function test_viewer_navigation_follows_led_assignment_scope_and_disappears_after_revocation(): void
+    public function test_viewer_navigation_combines_phase_one_and_led_assignment_scopes(): void
     {
         $viewer = $this->user('Viewer');
         $unrelatedProject = $this->project();
@@ -84,10 +84,9 @@ class SidebarNavigationTest extends TestCase
         ])->get(route('dashboard'))
             ->assertOk()
             ->assertSee('href="'.route('dashboard', ['proyek' => $unrelatedProject->id]).'"', false)
-            ->assertSee('href="'.e(route('led-assessment.dashboard', [
-                'proyek' => $domain['project']->id,
-                'siklus' => $domain['cycle']->id,
-            ])).'"', false)
+            ->assertSee('href="'.route('led-assessment.dashboard', [
+                'proyek' => $unrelatedProject->id,
+            ]).'"', false)
             ->assertSee('href="'.e(route('led-assessment.index', [
                 'proyek' => $domain['project']->id,
                 'siklus' => $domain['cycle']->id,
@@ -107,7 +106,7 @@ class SidebarNavigationTest extends TestCase
             'proyek' => $domain['project']->id,
             'siklus' => $domain['cycle']->id,
         ]))->assertOk();
-        $this->get(route('led-assessment.dashboard', ['proyek' => $unrelatedProject->id]))->assertForbidden();
+        $this->get(route('led-assessment.dashboard', ['proyek' => $unrelatedProject->id]))->assertOk();
 
         $this->actingAs($domain['manager']);
         app(LedAssessorAssignmentService::class)->revoke(
@@ -122,9 +121,12 @@ class SidebarNavigationTest extends TestCase
             'locale' => 'en',
         ])->get(route('dashboard'))
             ->assertOk()
-            ->assertDontSee('Assessment Dashboard')
+            ->assertSee('href="'.route('led-assessment.dashboard', [
+                'proyek' => $unrelatedProject->id,
+            ]).'"', false)
             ->assertDontSee('LED Assessment');
         $this->get(route('led-assessment.dashboard', ['proyek' => $domain['project']->id]))->assertForbidden();
+        $this->get(route('led-assessment.dashboard', ['proyek' => $unrelatedProject->id]))->assertOk();
         $this->get(route('led-assessment.index', ['proyek' => $domain['project']->id]))->assertForbidden();
     }
 
@@ -166,7 +168,7 @@ class SidebarNavigationTest extends TestCase
         }
     }
 
-    public function test_dashboard_project_scope_requires_led_entitlement_instead_of_phase_one_access(): void
+    public function test_dashboard_project_scope_includes_phase_one_project_access(): void
     {
         $lead = $this->user('Viewer');
         $domain = $this->ledDomain($lead, 'assessor_primary', 'draft');
@@ -177,9 +179,10 @@ class SidebarNavigationTest extends TestCase
             $this->withSession(['locale' => 'en'])
                 ->get(route('dashboard'))
                 ->assertOk()
-                ->assertSee('href="'.route('led-assessment.dashboard', [
+                ->assertSee('href="'.e(route('led-assessment.dashboard', [
                     'proyek' => $domain['project']->id,
-                ]).'"', false);
+                    'siklus' => $domain['cycle']->id,
+                ])).'"', false);
             $this->get(route('led-assessment.dashboard', [
                 'proyek' => $domain['project']->id,
             ]))->assertOk();
@@ -211,11 +214,30 @@ class SidebarNavigationTest extends TestCase
             $this->withSession(['locale' => 'en'])
                 ->get(route('dashboard'))
                 ->assertOk()
-                ->assertDontSee('Assessment Dashboard');
+                ->assertSee('href="'.e(route('led-assessment.dashboard', [
+                    'proyek' => $domain['project']->id,
+                    'siklus' => $domain['cycle']->id,
+                ])).'"', false);
             $this->get(route('led-assessment.dashboard', [
                 'proyek' => $domain['project']->id,
-            ]))->assertForbidden();
+                'siklus' => $domain['cycle']->id,
+            ]))->assertOk();
         }
+
+        AccreditationProjectMember::query()
+            ->where('project_id', $domain['project']->id)
+            ->where('user_id', $monitoringViewer->id)
+            ->where('membership_role', 'viewer')
+            ->update(['is_active' => false]);
+        $this->actingAs($monitoringViewer);
+        $this->withSession(['locale' => 'en'])
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee('Assessment Dashboard');
+        $this->get(route('led-assessment.dashboard', [
+            'proyek' => $domain['project']->id,
+            'siklus' => $domain['cycle']->id,
+        ]))->assertForbidden();
     }
 
     public function test_assigned_dashboard_scope_preserves_draft_and_reportable_cycle_boundaries(): void
@@ -225,11 +247,10 @@ class SidebarNavigationTest extends TestCase
             $domain = $this->ledDomain($lead, 'assessor_primary', $status);
             $this->actingAs($lead);
 
-            $dashboardParams = ['proyek' => $domain['project']->id];
-
-            if ($status !== 'draft') {
-                $dashboardParams['siklus'] = $domain['cycle']->id;
-            }
+            $dashboardParams = [
+                'proyek' => $domain['project']->id,
+                'siklus' => $domain['cycle']->id,
+            ];
 
             $this->withSession(['locale' => 'en'])
                 ->get(route('dashboard'))
@@ -241,7 +262,7 @@ class SidebarNavigationTest extends TestCase
 
             if ($status === 'draft') {
                 $dashboard
-                    ->assertSee('The cycle is still Draft')
+                    ->assertSee('Assessment configuration is in progress')
                     ->assertDontSee('data-approved-score="true"', false);
             }
 
@@ -250,11 +271,7 @@ class SidebarNavigationTest extends TestCase
                 'siklus' => $domain['cycle']->id,
             ]));
 
-            if ($status === 'draft') {
-                $explicitCycle->assertForbidden();
-            } else {
-                $explicitCycle->assertOk();
-            }
+            $explicitCycle->assertOk();
         }
     }
 
