@@ -68,15 +68,15 @@ return [
 
     'bulk_assignment' => [
         'title' => 'Bulk Assignment',
-        'description' => 'Select indicators by criterion, then preview existing users. The Phase 2 scope is defined by explicit LED assignments.',
+        'description' => 'Assign people to selected indicators by criterion, then preview the result. Lead Assessor and independent Reviewer assignments are required before activation.',
         'indicator_group_label' => 'Bulk assignment indicators',
-        'reason' => 'Reason for assignment changes',
-        'reason_placeholder' => 'Required for the assignment audit',
+        'reason' => 'Assignment audit justification',
+        'reason_placeholder' => 'Required for the audit; it does not replace institutional appointment approval',
     ],
 
     'bulk_mapping' => [
         'title' => 'Bulk Indicator-Item Mapping',
-        'description' => 'Select indicators and Phase 1 items under the same criterion. Every relationship is previewed before it is saved.',
+        'description' => 'Link indicators to relevant Phase 1 document items under the same criterion. Mapping is not required for initial activation, but is required before verified documents can be linked as evidence.',
         'indicator_group_label' => 'Bulk mapping indicators',
         'item_group_label' => 'Phase 1 items for bulk mapping',
         'role' => 'Mapping role',
@@ -102,14 +102,14 @@ return [
         'select_user_label' => 'Select user',
         'select_user' => 'Select an existing user',
         'empty' => 'No current assignments.',
-        'change_reason' => 'Reason for adding, replacing, or revoking an assignment',
-        'change_reason_placeholder' => 'Required for every assignment change',
+        'change_reason' => 'Assignment audit justification',
+        'change_reason_placeholder' => 'Required for every change; it does not replace institutional appointment approval',
     ],
 
     'mappings' => [
         'title' => 'Phase 1 Item Mapping',
-        'description' => 'Only items with document requirements from the same project.',
-        'role_label' => 'Mapping role',
+        'description' => 'Links an indicator to relevant document items from the same project. It is optional for initial activation, but mandatory before linking verified evidence.',
+        'role_label' => 'Mapping role (not Assessor role)',
         'select_item_label' => 'Select Phase 1 item',
         'select_item' => 'Select a project item',
         'empty' => 'No current mappings.',
@@ -119,12 +119,12 @@ return [
 
     'readiness' => [
         'title' => 'Activation Readiness',
-        'description' => 'Activation creates the organization snapshot server-side and an atomic audit event.',
+        'description' => 'Activation requires a Lead Assessor and independent Reviewer for every assessable indicator. Mapping remains required only for verified evidence linking.',
         'configured' => 'Configured',
         'missing_primary' => 'Without Lead Assessor',
         'missing_reviewer' => 'Without Independent Reviewer',
-        'missing_mapping' => 'Without Mapping',
-        'criterion_missing' => ':primary assessors · :reviewer reviewers · :mapping mappings incomplete',
+        'missing_mapping' => 'Without Mapping (evidence linking unavailable)',
+        'criterion_missing' => ':primary Lead Assessors · :reviewer independent Reviewers required for activation · :mapping mappings pending for evidence linking',
         'independent_reviewer' => 'Independent Reviewer',
         'activation_help' => 'The snapshot will record the project, study program, instrument, effective date, and active organizational units from DB-18.',
         'active_notice' => 'The cycle is active. Assessors can work, Reviewers can make independent decisions, and the dashboard remains Approved-only.',
@@ -268,7 +268,7 @@ return [
             'activate_unauthorized' => 'You are not authorized to activate this cycle.',
             'cannot_activate' => 'The cycle cannot be activated.',
             'version_must_remain_published' => 'The cycle instrument version must remain Published.',
-            'not_ready' => 'Every indicator must have a mapping, a Lead Assessor, and an active independent Reviewer.',
+            'not_ready' => 'Every assessable indicator must have a Lead Assessor and an active independent Reviewer.',
         ],
         'import' => [
             'version_code_taken' => 'The version code is already used for this instrument.',

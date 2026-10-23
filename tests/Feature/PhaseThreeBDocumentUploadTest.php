@@ -689,6 +689,7 @@ class PhaseThreeBDocumentUploadTest extends TestCase
     public function test_upload_page_renders_ui_02_information_statistics_and_existing_history(): void
     {
         [$project, $criterion, $item, $requirement] = $this->context();
+        $project->update(['final_deadline' => '2027-10-20']);
         $item->update(['target_deadline' => '2026-03-15']);
         $pic = $this->userWithRole('PIC Kriteria');
         $this->assignment($criterion, $pic, true);

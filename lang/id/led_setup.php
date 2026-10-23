@@ -68,15 +68,15 @@ return [
 
     'bulk_assignment' => [
         'title' => 'Penugasan Massal',
-        'description' => 'Pilih indikator berdasarkan kriteria, lalu pratinjau pengguna yang ada. Cakupan Fase 2 dibentuk oleh penugasan LED eksplisit.',
+        'description' => 'Tugaskan orang ke indikator terpilih berdasarkan kriteria, lalu periksa pratinjau. Penilai Utama dan Reviewer independen wajib tersedia sebelum aktivasi.',
         'indicator_group_label' => 'Indikator penugasan massal',
-        'reason' => 'Alasan perubahan penugasan',
-        'reason_placeholder' => 'Wajib untuk audit penugasan',
+        'reason' => 'Justifikasi audit penugasan',
+        'reason_placeholder' => 'Wajib untuk audit; tidak menggantikan persetujuan penugasan institusional',
     ],
 
     'bulk_mapping' => [
         'title' => 'Pemetaan Massal Indikator-Item',
-        'description' => 'Pilih indikator dan item Fase 1 pada kriteria yang sama. Semua relasi dipratinjau sebelum disimpan.',
+        'description' => 'Hubungkan indikator dengan item dokumen Fase 1 yang relevan pada kriteria yang sama. Pemetaan tidak wajib untuk aktivasi awal, tetapi wajib sebelum bukti terverifikasi dapat ditautkan.',
         'indicator_group_label' => 'Indikator pemetaan massal',
         'item_group_label' => 'Item Fase 1 untuk pemetaan massal',
         'role' => 'Peran pemetaan',
@@ -102,14 +102,14 @@ return [
         'select_user_label' => 'Pilih pengguna',
         'select_user' => 'Pilih pengguna yang ada',
         'empty' => 'Belum ada penugasan aktual.',
-        'change_reason' => 'Alasan penambahan, penggantian, atau pencabutan penugasan',
-        'change_reason_placeholder' => 'Wajib untuk setiap perubahan penugasan',
+        'change_reason' => 'Justifikasi audit penugasan',
+        'change_reason_placeholder' => 'Wajib untuk setiap perubahan; tidak menggantikan persetujuan penugasan institusional',
     ],
 
     'mappings' => [
         'title' => 'Pemetaan Item Fase 1',
-        'description' => 'Hanya item berkebutuhan dokumen dari project yang sama.',
-        'role_label' => 'Peran pemetaan',
+        'description' => 'Menghubungkan indikator dengan item dokumen relevan dari project yang sama. Pemetaan opsional untuk aktivasi awal, tetapi wajib sebelum bukti terverifikasi ditautkan.',
+        'role_label' => 'Peran pemetaan (bukan peran Penilai)',
         'select_item_label' => 'Pilih item Fase 1',
         'select_item' => 'Pilih item project',
         'empty' => 'Belum ada pemetaan aktual.',
@@ -119,12 +119,12 @@ return [
 
     'readiness' => [
         'title' => 'Kesiapan Aktivasi',
-        'description' => 'Aktivasi membuat snapshot organisasi di server dan event audit atomik.',
+        'description' => 'Aktivasi memerlukan Penilai Utama dan Reviewer independen untuk setiap indikator yang dapat dinilai. Pemetaan tetap wajib hanya untuk penautan bukti terverifikasi.',
         'configured' => 'Terkonfigurasi',
         'missing_primary' => 'Tanpa Penilai Utama',
         'missing_reviewer' => 'Tanpa Reviewer Independen',
-        'missing_mapping' => 'Tanpa Pemetaan',
-        'criterion_missing' => ':primary penilai · :reviewer reviewer · :mapping pemetaan belum lengkap',
+        'missing_mapping' => 'Tanpa Pemetaan (penautan bukti belum tersedia)',
+        'criterion_missing' => ':primary Penilai Utama · :reviewer Reviewer independen wajib untuk aktivasi · :mapping pemetaan menunggu untuk penautan bukti',
         'independent_reviewer' => 'Reviewer Independen',
         'activation_help' => 'Snapshot akan mencatat project, program studi, instrumen, tanggal efektif, dan unit organisasi aktif dari DB-18.',
         'active_notice' => 'Siklus aktif. Penilai dapat bekerja, Reviewer dapat mengambil keputusan independen, dan dashboard tetap hanya menampilkan data yang disetujui.',
@@ -268,7 +268,7 @@ return [
             'activate_unauthorized' => 'Anda tidak berhak mengaktifkan siklus ini.',
             'cannot_activate' => 'Siklus tidak dapat diaktifkan.',
             'version_must_remain_published' => 'Versi instrumen siklus harus tetap dipublikasikan.',
-            'not_ready' => 'Setiap indikator wajib memiliki pemetaan, Penilai Utama, dan Reviewer aktif yang independen.',
+            'not_ready' => 'Setiap indikator yang dapat dinilai wajib memiliki Penilai Utama dan Reviewer aktif yang independen.',
         ],
         'import' => [
             'version_code_taken' => 'Kode versi sudah digunakan pada instrumen ini.',

@@ -314,6 +314,21 @@ class PhaseTwoServiceContractTest extends TestCase
             'justification' => 'Draft dengan bukti.',
         ]);
         [$document, $submission] = $this->verifiedDocument($domain, 'verified');
+
+        try {
+            app(LedAssessmentEvidenceService::class)->linkVerifiedDocument(
+                $revision,
+                $submission,
+                $document,
+                $domain['assessor'],
+                'primary',
+            );
+            $this->fail('An unmapped verified document must not be linked as evidence.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('evidence', $exception->errors());
+            $this->assertDatabaseCount('accreditation_led_assessment_evidence', 0);
+        }
+
         AccreditationLedIndicatorItemMapping::create([
             'cycle_id' => $domain['cycle']->id,
             'project_id' => $domain['project']->id,

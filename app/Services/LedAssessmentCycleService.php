@@ -163,7 +163,8 @@ class LedAssessmentCycleService
                     'has_primary' => $primaryIds->isNotEmpty(),
                     'has_independent_reviewer' => $reviewerIds->isNotEmpty(),
                     'mapping_count' => $mappingCount,
-                    'ready' => $primaryIds->isNotEmpty() && $reviewerIds->isNotEmpty() && $mappingCount > 0,
+                    // Mappings govern evidence links, not whether internal assessment can begin.
+                    'ready' => $primaryIds->isNotEmpty() && $reviewerIds->isNotEmpty(),
                 ];
             })->values();
         $criterionNames = $cycle->project->criteria->keyBy('code');

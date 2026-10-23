@@ -83,7 +83,7 @@ class LedOperationalSetupTest extends TestCase
         $this->assertDatabaseHas('administrative_audit_logs', ['event' => 'instrument_version.published', 'subject_id' => $version->id]);
     }
 
-    public function test_cycle_activation_requires_independent_assignments_mapping_and_stores_canonical_organization_snapshot(): void
+    public function test_cycle_activation_requires_independent_assignments_but_not_mapping_and_stores_canonical_organization_snapshot(): void
     {
         $manager = $this->user('Project Manager');
         $assessor = $this->user('PIC Kriteria');
@@ -94,7 +94,25 @@ class LedOperationalSetupTest extends TestCase
         $cycleService = app(LedAssessmentCycleService::class);
         $cycle = $cycleService->create($project, $version, 'Cycle End-to-End', $manager);
         $assignments = app(LedAssessorAssignmentService::class);
+        $this->createOrganizationAssignment($project, $manager);
+
+        $this->assertFalse($cycleService->readiness($cycle)['ready']);
+        try {
+            $cycleService->activate($cycle, $manager);
+            $this->fail('Activation without a Lead Assessor must fail.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('cycle', $exception->errors());
+        }
+
         $assignments->assign($cycle, $indicator, $assessor, 'assessor_primary', $manager, 'Menetapkan Penilai Utama untuk aktivasi.');
+
+        $this->assertFalse($cycleService->readiness($cycle)['ready']);
+        try {
+            $cycleService->activate($cycle, $manager);
+            $this->fail('Activation without an independent Reviewer must fail.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('cycle', $exception->errors());
+        }
 
         $assessor->assignRole('Reviewer');
         try {
@@ -106,26 +124,19 @@ class LedOperationalSetupTest extends TestCase
 
         $assignments->assign($cycle, $indicator, $reviewer, 'reviewer', $manager, 'Menetapkan Reviewer untuk aktivasi.');
 
-        try {
-            $cycleService->activate($cycle, $manager);
-            $this->fail('Activation without mapping must fail.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('cycle', $exception->errors());
-        }
-
-        $item = $this->documentItem($project);
-        $mappingService = app(LedIndicatorItemMappingService::class);
-        $mapping = $mappingService->map($cycle, $indicator, $item, 'primary', $manager);
-        $revoked = $mappingService->revoke($mapping, $manager, 'Mapping diganti setelah verifikasi scope.');
-        $this->assertNotNull($revoked->revoked_at);
-        $this->assertSame('Mapping diganti setelah verifikasi scope.', $revoked->revoke_reason);
-        $mappingService->map($cycle, $indicator, $item, 'supporting', $manager);
-
-        $this->createOrganizationAssignment($project, $manager);
         $readiness = $cycleService->readiness($cycle);
         $this->assertTrue($readiness['ready']);
         $this->assertSame(1, $readiness['configured']);
+        $this->assertSame(1, $readiness['missing_mapping']);
         $activated = $cycleService->activate($cycle, $manager);
+
+        $item = $this->documentItem($project);
+        $mappingService = app(LedIndicatorItemMappingService::class);
+        $mapping = $mappingService->map($activated, $indicator, $item, 'primary', $manager);
+        $revoked = $mappingService->revoke($mapping, $manager, 'Mapping diganti setelah verifikasi scope.');
+        $this->assertNotNull($revoked->revoked_at);
+        $this->assertSame('Mapping diganti setelah verifikasi scope.', $revoked->revoke_reason);
+        $mappingService->map($activated, $indicator, $item, 'supporting', $manager);
         $snapshotJson = app(LedOrganizationSnapshotService::class)->json($activated->organization_snapshot_json);
 
         $this->assertSame('active', $activated->status);
@@ -234,7 +245,6 @@ class LedOperationalSetupTest extends TestCase
         $assessor = $this->user('PIC Kriteria');
         $reviewer = $this->user('Reviewer');
         $project = $this->project();
-        $item = $this->documentItem($project);
         $this->actingAs($admin);
 
         $component = Livewire::withQueryParams(['proyek' => $project->id])
@@ -260,6 +270,7 @@ class LedOperationalSetupTest extends TestCase
         $cycle = $project->assessmentCycles()->sole();
         $indicator = $cycle->assessments()->sole()->indicator;
         $component
+            ->assertSee('Pemetaan tidak wajib untuk aktivasi awal')
             ->set('indicatorId', $indicator->id)
             ->set('assignmentRole', 'assessor_primary')
             ->set('assignmentUserId', $assessor->id)
@@ -269,9 +280,6 @@ class LedOperationalSetupTest extends TestCase
             ->set('assignmentUserId', $reviewer->id)
             ->set('assignmentRevocationReason', 'Menetapkan Reviewer dari UI.')
             ->call('assignUser')
-            ->set('mappingRole', 'primary')
-            ->set('mappingItemId', $item->id)
-            ->call('createMapping')
             ->assertSee('1 / 1 indikator')
             ->call('activateCycle')
             ->assertSee('Siklus Cycle dari UI aktif')
