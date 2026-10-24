@@ -37,6 +37,12 @@ class LedAssessmentWorkflowService
                 ? AccreditationLedAssessmentRevision::query()->lockForUpdate()->findOrFail($target->current_working_revision_id)
                 : null;
 
+            if ($working && $working->status === 'draft'
+                && array_key_exists('draft_fingerprint', $data)
+                && ! hash_equals($working->draftFingerprint(), (string) $data['draft_fingerprint'])) {
+                throw ValidationException::withMessages(['assessment' => __('led_assessment.validation.draft_changed')]);
+            }
+
             if ($working && in_array($working->status, ['submitted', 'in_review'], true)) {
                 throw ValidationException::withMessages(['assessment' => __('led_assessment.validation.revision_under_review')]);
             }

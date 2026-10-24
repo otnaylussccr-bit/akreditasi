@@ -49,4 +49,15 @@ class AccreditationLedAssessmentRevision extends Model
     {
         return $this->hasMany(AccreditationLedAssessmentEvidence::class, 'revision_id');
     }
+
+    public function draftFingerprint(): string
+    {
+        return hash('sha256', json_encode([
+            'id' => $this->id,
+            'rubric_id' => $this->rubric_id,
+            'justification' => $this->justification,
+            'gap_analysis' => $this->gap_analysis,
+            'recommendation' => $this->recommendation,
+        ], JSON_THROW_ON_ERROR));
+    }
 }

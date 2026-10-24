@@ -149,6 +149,23 @@ class LedAssessmentCycleService
                     ->where('assignment_role', 'reviewer')
                     ->filter(fn ($assignment): bool => ! $assessorIds->contains($assignment->user_id))
                     ->pluck('user_id');
+                $primaryAssignees = $assignments
+                    ->where('assignment_role', 'assessor_primary')
+                    ->sortBy('user.name')
+                    ->map(fn ($assignment): ?string => $assignment->user?->name)
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+                $independentReviewerAssignees = $assignments
+                    ->where('assignment_role', 'reviewer')
+                    ->filter(fn ($assignment): bool => ! $assessorIds->contains($assignment->user_id))
+                    ->sortBy('user.name')
+                    ->map(fn ($assignment): ?string => $assignment->user?->name)
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
                 $mappingCount = $cycle->itemMappings
                     ->where('indicator_id', $assessment->indicator_id)
                     ->whereNull('revoked_at')
@@ -162,6 +179,8 @@ class LedAssessmentCycleService
                     'title' => $assessment->indicator->title,
                     'has_primary' => $primaryIds->isNotEmpty(),
                     'has_independent_reviewer' => $reviewerIds->isNotEmpty(),
+                    'primary_assignees' => $primaryAssignees,
+                    'independent_reviewer_assignees' => $independentReviewerAssignees,
                     'mapping_count' => $mappingCount,
                     // Mappings govern evidence links, not whether internal assessment can begin.
                     'ready' => $primaryIds->isNotEmpty() && $reviewerIds->isNotEmpty(),

@@ -61,8 +61,6 @@ class Index extends Component
 
     public string $assignmentRole = 'assessor_primary';
 
-    public string $assignmentRevocationReason = '';
-
     public ?int $mappingItemId = null;
 
     public string $mappingRole = 'primary';
@@ -84,6 +82,8 @@ class Index extends Component
     #[Locked]
     public ?string $bulkAssignmentFingerprint = null;
 
+    public ?string $bulkAssignmentMessage = null;
+
     public array $bulkMappingIndicatorIds = [];
 
     public array $bulkMappingItemIds = [];
@@ -94,6 +94,37 @@ class Index extends Component
 
     #[Locked]
     public ?string $bulkMappingFingerprint = null;
+
+    public ?string $bulkMappingMessage = null;
+
+    public ?string $assignmentMessage = null;
+
+    public ?string $mappingMessage = null;
+
+    public ?string $operationalFeedbackContext = null;
+
+    #[Locked]
+    public ?string $confirmationAction = null;
+
+    #[Locked]
+    public ?int $confirmationTargetId = null;
+
+    #[Locked]
+    public ?int $confirmationIndicatorId = null;
+
+    #[Locked]
+    public ?int $confirmationUserId = null;
+
+    #[Locked]
+    public ?string $confirmationRole = null;
+
+    #[Locked]
+    public ?int $confirmationPrimaryId = null;
+
+    #[Locked]
+    public ?string $confirmationFocusReturnId = null;
+
+    public string $confirmationReason = '';
 
     public ?string $successMessage = null;
 
@@ -246,13 +277,17 @@ class Index extends Component
     {
         $indicator = $this->authorizedIndicator($this->authorizedCycle(), $indicatorId);
         $this->indicatorId = $indicator->id;
-        $this->reset(['assignmentUserId', 'mappingItemId', 'assignmentRevocationReason', 'mappingRevocationReason']);
+        $this->cancelConfirmation();
+        $this->reset(['assignmentUserId', 'mappingItemId', 'mappingRevocationReason', 'assignmentMessage', 'mappingMessage', 'operationalFeedbackContext']);
         $this->resetValidation();
     }
 
     public function previewBulkAssignments(LedOperationalSetupBulkService $bulk): void
     {
+        $this->operationalFeedbackContext = 'bulk_assignment';
         $this->resetValidation();
+        $this->successMessage = null;
+        $this->bulkAssignmentMessage = null;
         $plan = $bulk->previewAssignments(
             $this->authorizedCycle(),
             $this->bulkAssignmentIndicatorIds,
@@ -266,12 +301,16 @@ class Index extends Component
         );
         $this->bulkAssignmentPreview = $plan;
         $this->bulkAssignmentFingerprint = $plan['fingerprint'];
-        $this->successMessage = __('led_setup.notices.bulk_assignment_preview_ready');
+        $this->bulkAssignmentMessage = __('led_setup.notices.bulk_assignment_preview_ready');
     }
 
     public function applyBulkAssignments(LedOperationalSetupBulkService $bulk): void
     {
         abort_unless($this->bulkAssignmentPreview && $this->bulkAssignmentFingerprint, 409, __('led_setup.messages.authorization.bulk_assignment_preview'));
+        $this->operationalFeedbackContext = 'bulk_assignment';
+        $this->resetValidation();
+        $this->successMessage = null;
+        $this->bulkAssignmentMessage = null;
         $result = $bulk->applyAssignments(
             $this->authorizedCycle(),
             $this->bulkAssignmentIndicatorIds,
@@ -284,17 +323,21 @@ class Index extends Component
             $this->bulkAssignmentFingerprint,
             Auth::user(),
         );
-        $this->successMessage = __('led_setup.notices.bulk_assignment_applied', [
+        $this->reset(['bulkAssignmentIndicatorIds', 'bulkPrimaryUserId', 'bulkSupportUserId', 'bulkReviewerUserId', 'bulkAssignmentReason']);
+        $this->resetBulkAssignmentPreview();
+        $this->bulkAssignmentMessage = __('led_setup.notices.bulk_assignment_applied', [
             'created' => $result['created_count'],
             'skipped' => $result['skipped_count'],
         ]);
-        $this->reset(['bulkAssignmentIndicatorIds', 'bulkPrimaryUserId', 'bulkSupportUserId', 'bulkReviewerUserId', 'bulkAssignmentReason']);
-        $this->resetBulkAssignmentPreview();
+        $this->completeConfirmation();
     }
 
     public function previewBulkMappings(LedOperationalSetupBulkService $bulk): void
     {
+        $this->operationalFeedbackContext = 'bulk_mapping';
         $this->resetValidation();
+        $this->successMessage = null;
+        $this->bulkMappingMessage = null;
         $plan = $bulk->previewMappings(
             $this->authorizedCycle(),
             $this->bulkMappingIndicatorIds,
@@ -304,12 +347,16 @@ class Index extends Component
         );
         $this->bulkMappingPreview = $plan;
         $this->bulkMappingFingerprint = $plan['fingerprint'];
-        $this->successMessage = __('led_setup.notices.bulk_mapping_preview_ready');
+        $this->bulkMappingMessage = __('led_setup.notices.bulk_mapping_preview_ready');
     }
 
     public function applyBulkMappings(LedOperationalSetupBulkService $bulk): void
     {
         abort_unless($this->bulkMappingPreview && $this->bulkMappingFingerprint, 409, __('led_setup.messages.authorization.bulk_mapping_preview'));
+        $this->operationalFeedbackContext = 'bulk_mapping';
+        $this->resetValidation();
+        $this->successMessage = null;
+        $this->bulkMappingMessage = null;
         $result = $bulk->applyMappings(
             $this->authorizedCycle(),
             $this->bulkMappingIndicatorIds,
@@ -318,22 +365,81 @@ class Index extends Component
             $this->bulkMappingFingerprint,
             Auth::user(),
         );
-        $this->successMessage = __('led_setup.notices.bulk_mapping_applied', [
+        $this->reset(['bulkMappingIndicatorIds', 'bulkMappingItemIds']);
+        $this->resetBulkMappingPreview();
+        $this->bulkMappingMessage = __('led_setup.notices.bulk_mapping_applied', [
             'created' => $result['created_count'],
             'skipped' => $result['skipped_count'],
         ]);
-        $this->reset(['bulkMappingIndicatorIds', 'bulkMappingItemIds']);
-        $this->resetBulkMappingPreview();
+        $this->completeConfirmation();
     }
 
-    public function assignUser(LedAssessorAssignmentService $assignments): void
+    public function openConfirmation(string $action, ?int $targetId = null): void
     {
+        if ($action === 'bulk_assignment') {
+            abort_unless($this->bulkAssignmentPreview && $this->bulkAssignmentFingerprint && $this->bulkAssignmentPreview['can_apply'], 409, __('led_setup.messages.authorization.bulk_assignment_preview'));
+        } elseif ($action === 'bulk_mapping') {
+            abort_unless($this->bulkMappingPreview && $this->bulkMappingFingerprint && $this->bulkMappingPreview['can_apply'], 409, __('led_setup.messages.authorization.bulk_mapping_preview'));
+        } elseif ($action === 'revoke_assignment') {
+            $assignment = AccreditationLedAssessorAssignment::query()->findOrFail($targetId);
+            abort_unless($assignment->cycle_id === $this->authorizedCycle()->id, 403, __('led_setup.messages.authorization.assignment_scope'));
+            abort_unless(Gate::allows('revoke', $assignment), 403, __('led_setup.messages.authorization.assignment_revoke'));
+        } elseif ($action === 'revoke_mapping') {
+            $mapping = AccreditationLedIndicatorItemMapping::query()->findOrFail($targetId);
+            abort_unless($mapping->cycle_id === $this->authorizedCycle()->id, 403, __('led_setup.messages.authorization.mapping_scope'));
+        } else {
+            abort(404);
+        }
+
+        $this->resetConfirmationState();
+        $this->confirmationAction = $action;
+        $this->confirmationTargetId = $targetId;
+        $this->confirmationFocusReturnId = $action === 'revoke_assignment'
+            ? 'assignment-revoke-'.$targetId
+            : null;
+    }
+
+    public function cancelConfirmation(): void
+    {
+        $this->resetConfirmationState();
+    }
+
+    public function confirmOperation(
+        LedOperationalSetupBulkService $bulk,
+        LedAssessorAssignmentService $assignments,
+        LedIndicatorItemMappingService $mappings,
+    ): void {
+        if (in_array($this->confirmationAction, ['bulk_assignment', 'bulk_mapping'], true)) {
+            $action = $this->confirmationAction;
+            $this->cancelConfirmation();
+
+            match ($action) {
+                'bulk_assignment' => $this->applyBulkAssignments($bulk),
+                'bulk_mapping' => $this->applyBulkMappings($bulk),
+            };
+
+            return;
+        }
+
+        match ($this->confirmationAction) {
+            'add_assignment', 'replace_assignment' => $this->confirmAssignment($assignments),
+            'revoke_assignment' => $this->confirmAssignmentRevocation($assignments),
+            'revoke_mapping' => $this->revokeMapping((int) $this->confirmationTargetId, $mappings),
+            default => abort(404),
+        };
+    }
+
+    public function openAssignmentConfirmation(): void
+    {
+        $this->operationalFeedbackContext = 'assignment';
+        $this->resetValidation();
+        $this->successMessage = null;
+        $this->assignmentMessage = null;
         $cycle = $this->authorizedCycle();
         $indicator = $this->authorizedIndicator($cycle, (int) $this->indicatorId);
         $this->validate([
             'assignmentUserId' => ['required', 'integer', Rule::exists('users', 'id')->where('is_active', true)],
             'assignmentRole' => ['required', Rule::in(['assessor_primary', 'assessor_support', 'reviewer'])],
-            'assignmentRevocationReason' => ['required', 'string', 'max:1000'],
         ], [], __('led_setup.validation.attributes'));
         $user = User::query()->with('roles')->findOrFail($this->assignmentUserId);
         $currentPrimary = $this->assignmentRole === 'assessor_primary'
@@ -344,37 +450,73 @@ class Index extends Component
                 ->first()
             : null;
 
-        if ($currentPrimary) {
-            $assignment = $assignments->replace($currentPrimary, $user, Auth::user(), $this->assignmentRevocationReason);
-            $this->successMessage = __('led_setup.notices.primary_replaced', ['user' => $assignment->user->name]);
-            $this->assignmentRevocationReason = '';
-        } else {
-            $assignment = $assignments->assign($cycle, $indicator, $user, $this->assignmentRole, Auth::user(), $this->assignmentRevocationReason);
-            $this->successMessage = __('led_setup.notices.user_assigned', [
-                'user' => $assignment->user->name,
-                'role' => LocalizedLabel::assignmentRole($this->assignmentRole),
-            ]);
-            $this->assignmentRevocationReason = '';
-        }
-        $this->assignmentUserId = null;
-        $this->resetValidation();
+        $this->resetConfirmationState();
+        $this->confirmationAction = $currentPrimary ? 'replace_assignment' : 'add_assignment';
+        $this->confirmationIndicatorId = $indicator->id;
+        $this->confirmationUserId = $user->id;
+        $this->confirmationRole = $this->assignmentRole;
+        $this->confirmationPrimaryId = $currentPrimary?->id;
+        $this->confirmationFocusReturnId = 'assignment-add';
     }
 
-    public function revokeAssignment(int $assignmentId, LedAssessorAssignmentService $assignments): void
+    private function confirmAssignment(LedAssessorAssignmentService $assignments): void
     {
-        $assignment = AccreditationLedAssessorAssignment::query()->with('cycle.project')->findOrFail($assignmentId);
+        $this->operationalFeedbackContext = 'assignment';
+        $this->resetValidation();
+        $this->successMessage = null;
+        $this->assignmentMessage = null;
+        $reason = $this->validatedConfirmationReason();
+        $cycle = $this->authorizedCycle();
+        abort_unless($this->confirmationIndicatorId === $this->indicatorId, 409, __('led_setup.messages.authorization.indicator'));
+        $indicator = $this->authorizedIndicator($cycle, (int) $this->confirmationIndicatorId);
+        $user = User::query()->with('roles')->findOrFail($this->confirmationUserId);
+
+        if ($this->confirmationAction === 'replace_assignment') {
+            $currentPrimary = $cycle->assignments()
+                ->where('indicator_id', $indicator->id)
+                ->where('assignment_role', 'assessor_primary')
+                ->whereNull('revoked_at')
+                ->first();
+            if (! $currentPrimary || $currentPrimary->id !== $this->confirmationPrimaryId) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['replacement' => __('led_setup.messages.assignment.replacement_conflict')]);
+            }
+            $assignment = $assignments->replace($currentPrimary, $user, Auth::user(), $reason);
+            $this->assignmentMessage = __('led_setup.notices.primary_replaced', ['user' => $assignment->user->name]);
+        } else {
+            $assignment = $assignments->assign($cycle, $indicator, $user, (string) $this->confirmationRole, Auth::user(), $reason);
+            $this->assignmentMessage = __('led_setup.notices.user_assigned', [
+                'user' => $assignment->user->name,
+                'role' => LocalizedLabel::assignmentRole((string) $this->confirmationRole),
+            ]);
+        }
+
+        $this->assignmentUserId = null;
+        $this->completeConfirmation();
+    }
+
+    private function confirmAssignmentRevocation(LedAssessorAssignmentService $assignments): void
+    {
+        $this->operationalFeedbackContext = 'assignment';
+        $this->resetValidation();
+        $this->successMessage = null;
+        $this->assignmentMessage = null;
+        $reason = $this->validatedConfirmationReason();
+        $assignment = AccreditationLedAssessorAssignment::query()->with('cycle.project')->findOrFail($this->confirmationTargetId);
         abort_unless($assignment->cycle_id === $this->authorizedCycle()->id, 403, __('led_setup.messages.authorization.assignment_scope'));
         if (Gate::denies('revoke', $assignment)) {
             throw new AuthorizationException(__('led_setup.messages.authorization.assignment_revoke'));
         }
-        $revoked = $assignments->revoke($assignment, Auth::user(), $this->assignmentRevocationReason);
-        $this->successMessage = __('led_setup.notices.assignment_revoked', ['user' => $revoked->user->name]);
-        $this->assignmentRevocationReason = '';
-        $this->resetValidation();
+        $revoked = $assignments->revoke($assignment, Auth::user(), $reason);
+        $this->assignmentMessage = __('led_setup.notices.assignment_revoked', ['user' => $revoked->user->name]);
+        $this->completeConfirmation();
     }
 
     public function createMapping(LedIndicatorItemMappingService $mappings): void
     {
+        $this->operationalFeedbackContext = 'mapping';
+        $this->resetValidation();
+        $this->successMessage = null;
+        $this->mappingMessage = null;
         $cycle = $this->authorizedCycle();
         $indicator = $this->authorizedIndicator($cycle, (int) $this->indicatorId);
         $this->validate([
@@ -383,7 +525,7 @@ class Index extends Component
         ], [], __('led_setup.validation.attributes'));
         $item = AccreditationItem::query()->with('criterion')->findOrFail($this->mappingItemId);
         $mapping = $mappings->map($cycle, $indicator, $item, $this->mappingRole, Auth::user());
-        $this->successMessage = __('led_setup.notices.item_mapped', [
+        $this->mappingMessage = __('led_setup.notices.item_mapped', [
             'item' => $mapping->item->number,
             'role' => LocalizedLabel::mappingRole($mapping->mapping_role),
         ]);
@@ -393,15 +535,20 @@ class Index extends Component
 
     public function revokeMapping(int $mappingId, LedIndicatorItemMappingService $mappings): void
     {
+        $this->operationalFeedbackContext = 'mapping';
+        $this->resetValidation();
+        $this->successMessage = null;
+        $this->mappingMessage = null;
         $mapping = AccreditationLedIndicatorItemMapping::query()->with('cycle.project')->findOrFail($mappingId);
         abort_unless($mapping->cycle_id === $this->authorizedCycle()->id, 403, __('led_setup.messages.authorization.mapping_scope'));
         if (Gate::denies('revoke', $mapping)) {
             throw new AuthorizationException(__('led_setup.messages.authorization.mapping_revoke'));
         }
         $revoked = $mappings->revoke($mapping, Auth::user(), $this->mappingRevocationReason);
-        $this->successMessage = __('led_setup.notices.mapping_revoked', ['mapping' => $revoked->id]);
+        $this->mappingMessage = __('led_setup.notices.mapping_revoked', ['mapping' => $revoked->id]);
         $this->mappingRevocationReason = '';
         $this->resetValidation();
+        $this->completeConfirmation();
     }
 
     public function activateCycle(LedAssessmentCycleService $cycles): void
@@ -571,7 +718,6 @@ class Index extends Component
             'indicatorId',
             'assignmentUserId',
             'mappingItemId',
-            'assignmentRevocationReason',
             'mappingRevocationReason',
             'bulkAssignmentIndicatorIds',
             'bulkPrimaryUserId',
@@ -580,10 +726,23 @@ class Index extends Component
             'bulkAssignmentReason',
             'bulkAssignmentPreview',
             'bulkAssignmentFingerprint',
+            'bulkAssignmentMessage',
             'bulkMappingIndicatorIds',
             'bulkMappingItemIds',
             'bulkMappingPreview',
             'bulkMappingFingerprint',
+            'bulkMappingMessage',
+            'assignmentMessage',
+            'mappingMessage',
+            'operationalFeedbackContext',
+            'confirmationAction',
+            'confirmationTargetId',
+            'confirmationIndicatorId',
+            'confirmationUserId',
+            'confirmationRole',
+            'confirmationPrimaryId',
+            'confirmationFocusReturnId',
+            'confirmationReason',
             'sourcePdf',
             'manifestFile',
             'importPreview',
@@ -614,15 +773,27 @@ class Index extends Component
         $this->reset([
             'assignmentUserId',
             'mappingItemId',
-            'assignmentRevocationReason',
             'mappingRevocationReason',
             'bulkAssignmentIndicatorIds',
             'bulkPrimaryUserId',
             'bulkSupportUserId',
             'bulkReviewerUserId',
             'bulkAssignmentReason',
+            'bulkAssignmentMessage',
             'bulkMappingIndicatorIds',
             'bulkMappingItemIds',
+            'bulkMappingMessage',
+            'assignmentMessage',
+            'mappingMessage',
+            'operationalFeedbackContext',
+            'confirmationAction',
+            'confirmationTargetId',
+            'confirmationIndicatorId',
+            'confirmationUserId',
+            'confirmationRole',
+            'confirmationPrimaryId',
+            'confirmationFocusReturnId',
+            'confirmationReason',
         ]);
         $this->resetBulkAssignmentPreview();
         $this->resetBulkMappingPreview();
@@ -632,11 +803,45 @@ class Index extends Component
     {
         $this->bulkAssignmentPreview = null;
         $this->bulkAssignmentFingerprint = null;
+        $this->bulkAssignmentMessage = null;
     }
 
     private function resetBulkMappingPreview(): void
     {
         $this->bulkMappingPreview = null;
         $this->bulkMappingFingerprint = null;
+        $this->bulkMappingMessage = null;
+    }
+
+    private function validatedConfirmationReason(): string
+    {
+        $this->validate(['confirmationReason' => ['required', 'string', 'max:1000']], [], __('led_setup.validation.attributes'));
+        if (trim($this->confirmationReason) === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'confirmationReason' => __('led_setup.messages.assignment.confirmation_reason_required'),
+            ]);
+        }
+
+        return $this->confirmationReason;
+    }
+
+    private function completeConfirmation(): void
+    {
+        $this->resetConfirmationState();
+        $this->resetValidation();
+    }
+
+    private function resetConfirmationState(): void
+    {
+        $this->reset([
+            'confirmationAction',
+            'confirmationTargetId',
+            'confirmationIndicatorId',
+            'confirmationUserId',
+            'confirmationRole',
+            'confirmationPrimaryId',
+            'confirmationFocusReturnId',
+            'confirmationReason',
+        ]);
     }
 }

@@ -113,6 +113,21 @@
                         </span>
                     </header>
 
+                    @if ($reviewerFeedback->isNotEmpty())
+                        <section class="led-section led-reviewer-feedback">
+                            <div class="led-section-heading"><span>!</span><div><strong>{{ __('led_assessment.index.reviewer_feedback_heading') }}</strong><small>{{ __('led_assessment.index.reviewer_feedback_help') }}</small></div></div>
+                            <div class="led-reviewer-feedback-list">
+                                @foreach ($reviewerFeedback as $feedback)
+                                    @php $event = $feedback['event']; @endphp
+                                    <article>
+                                        <p>{{ $event->decision_note }}</p>
+                                        <small>{{ __('led_assessment.index.reviewer_feedback_meta', ['status' => \App\Support\LocalizedLabel::status($event->to_state), 'reviewer' => $event->actor?->name ?? __('led_assessment.index.reviewer_feedback_reviewer_unknown'), 'revision' => $feedback['revision_number'], 'datetime' => \App\Support\BusinessDateTime::localizedFormat($event->occurred_at, 'd M Y, H:i')]) }}</small>
+                                    </article>
+                                @endforeach
+                            </div>
+                        </section>
+                    @endif
+
                     <section class="led-section">
                         <div class="led-section-heading"><span>1</span><div><strong>{{ __('led_assessment.index.score_heading') }}</strong><small>{{ __('led_assessment.index.score_help') }}</small></div></div>
                         <div class="led-rubric-grid">
@@ -187,7 +202,12 @@
                     @endif
 
                     <footer class="led-editor-actions">
-                        <span>{{ __('led_assessment.index.active_revision', ['revision' => $workingRevision?->revision_number ? 'r'.$workingRevision->revision_number : __('led_assessment.index.revision_not_created')]) }}</span>
+                        <div class="led-editor-status">
+                            <span>{{ __('led_assessment.index.active_revision', ['revision' => $workingRevision?->revision_number ? 'r'.$workingRevision->revision_number : __('led_assessment.index.revision_not_created')]) }}</span>
+                            @if ($canEdit && $workingRevision?->status === 'draft')
+                                <small>{{ __('led_assessment.index.save_before_submit') }}</small>
+                            @endif
+                        </div>
                         <div>
                             @can('update', $selectedAssessment)
                                 @if (! $workingRevision || $workingRevision->status === 'draft' || $workingRevision->status === 'revision_requested')

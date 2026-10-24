@@ -104,6 +104,7 @@ return [
         'empty' => 'No current assignments.',
         'change_reason' => 'Assignment audit justification',
         'change_reason_placeholder' => 'Required for every change; it does not replace institutional appointment approval',
+        'change_reason_help' => 'Required only when adding, replacing, or revoking an assignment.',
     ],
 
     'mappings' => [
@@ -115,6 +116,7 @@ return [
         'empty' => 'No current mappings.',
         'revocation_reason' => 'Mapping revocation reason',
         'revocation_reason_placeholder' => 'Required before selecting Revoke',
+        'revocation_reason_help' => 'Required only when revoking a mapping.',
     ],
 
     'readiness' => [
@@ -137,6 +139,7 @@ return [
     ],
 
     'labels' => [
+        'required' => 'Required',
         'indicators' => 'Indicators',
         'indicator' => 'Indicator',
         'rubrics' => 'Rubrics',
@@ -169,6 +172,34 @@ return [
         'revoke' => 'Revoke',
         'link' => 'Link',
         'activate_cycle' => 'Activate Cycle',
+        'cancel' => 'Cancel',
+        'confirm' => 'Confirm',
+        'replace' => 'Replace Lead Assessor',
+    ],
+
+    'confirmation_modal' => [
+        'bulk_assignment_title' => 'Confirm Bulk Assignment',
+        'bulk_mapping_title' => 'Confirm Bulk Indicator-Item Mapping',
+        'revoke_assignment_title' => 'Confirm Assignment Revocation',
+        'revoke_mapping_title' => 'Confirm Mapping Revocation',
+        'add_assignment_title' => 'Confirm Assignment',
+        'replace_assignment_title' => 'Replace Lead Assessor',
+        'bulk_assignment_body' => 'Apply this assignment preview atomically?',
+        'bulk_mapping_body' => 'Apply this indicator-item mapping preview atomically?',
+        'revoke_assignment_body' => 'Revoke the selected assignment using the audit justification below?',
+        'revoke_mapping_body' => 'Revoke the selected mapping using the entered revocation reason?',
+        'add_assignment_body' => 'Add this assignment using the audit justification below?',
+        'replace_assignment_body' => 'Replace the current Lead Assessor atomically. The previous assignment will be revoked and retained in history.',
+        'context_project' => 'Project',
+        'context_cycle' => 'Cycle',
+        'context_indicator' => 'Indicator',
+        'context_full_indicator_title' => 'Show full indicator title',
+        'context_user' => 'User',
+        'context_role' => 'Assignment role',
+        'context_current_lead' => 'Current Lead Assessor',
+        'context_new_lead' => 'New Lead Assessor',
+        'reason_label' => 'Assignment Audit Justification',
+        'audit_notice' => 'This operation is auditable and preserves prior history.',
     ],
 
     'confirm' => [
@@ -207,6 +238,7 @@ return [
             'assignmentUserId' => 'assignment user',
             'assignmentRole' => 'assignment role',
             'assignmentRevocationReason' => 'assignment change reason',
+            'confirmationReason' => 'assignment audit justification',
             'mappingItemId' => 'Phase 1 item',
             'mappingRole' => 'mapping role',
         ],
@@ -306,6 +338,7 @@ return [
             'cannot_replace' => 'The assignment cannot be replaced.',
             'replacement_invalid' => 'The replacement user must be active, have project access, and differ from the previous user.',
             'replacement_conflict' => 'The replacement user has a duplicate or non-independent active assignment.',
+            'confirmation_reason_required' => 'An assignment audit justification is required.',
         ],
         'mapping' => [
             'role_invalid' => 'The mapping role must be Primary or Supporting.',

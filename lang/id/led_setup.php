@@ -104,6 +104,7 @@ return [
         'empty' => 'Belum ada penugasan aktual.',
         'change_reason' => 'Justifikasi audit penugasan',
         'change_reason_placeholder' => 'Wajib untuk setiap perubahan; tidak menggantikan persetujuan penugasan institusional',
+        'change_reason_help' => 'Wajib hanya saat menambah, mengganti, atau mencabut penugasan.',
     ],
 
     'mappings' => [
@@ -115,6 +116,7 @@ return [
         'empty' => 'Belum ada pemetaan aktual.',
         'revocation_reason' => 'Alasan pencabutan pemetaan',
         'revocation_reason_placeholder' => 'Wajib sebelum memilih Cabut',
+        'revocation_reason_help' => 'Wajib hanya saat mencabut pemetaan.',
     ],
 
     'readiness' => [
@@ -137,6 +139,7 @@ return [
     ],
 
     'labels' => [
+        'required' => 'Wajib',
         'indicators' => 'Indikator',
         'indicator' => 'Indikator',
         'rubrics' => 'Rubrik',
@@ -169,6 +172,34 @@ return [
         'revoke' => 'Cabut',
         'link' => 'Hubungkan',
         'activate_cycle' => 'Aktifkan Siklus',
+        'cancel' => 'Batal',
+        'confirm' => 'Konfirmasi',
+        'replace' => 'Ganti Penilai Utama',
+    ],
+
+    'confirmation_modal' => [
+        'bulk_assignment_title' => 'Konfirmasi Penugasan Massal',
+        'bulk_mapping_title' => 'Konfirmasi Pemetaan Massal Indikator-Item',
+        'revoke_assignment_title' => 'Konfirmasi Pencabutan Penugasan',
+        'revoke_mapping_title' => 'Konfirmasi Pencabutan Pemetaan',
+        'add_assignment_title' => 'Konfirmasi Penugasan',
+        'replace_assignment_title' => 'Ganti Penilai Utama',
+        'bulk_assignment_body' => 'Terapkan pratinjau penugasan ini secara atomik?',
+        'bulk_mapping_body' => 'Terapkan pratinjau pemetaan indikator-item ini secara atomik?',
+        'revoke_assignment_body' => 'Cabut penugasan yang dipilih menggunakan justifikasi audit di bawah?',
+        'revoke_mapping_body' => 'Cabut pemetaan yang dipilih menggunakan alasan pencabutan yang telah diisi?',
+        'add_assignment_body' => 'Tambahkan penugasan ini menggunakan justifikasi audit di bawah?',
+        'replace_assignment_body' => 'Ganti Penilai Utama saat ini secara atomik. Penugasan sebelumnya akan dicabut dan dipertahankan dalam histori.',
+        'context_project' => 'Proyek',
+        'context_cycle' => 'Siklus',
+        'context_indicator' => 'Indikator',
+        'context_full_indicator_title' => 'Tampilkan judul indikator lengkap',
+        'context_user' => 'Pengguna',
+        'context_role' => 'Peran penugasan',
+        'context_current_lead' => 'Penilai Utama saat ini',
+        'context_new_lead' => 'Penilai Utama baru',
+        'reason_label' => 'Justifikasi Audit Penugasan',
+        'audit_notice' => 'Operasi ini dapat diaudit dan mempertahankan histori sebelumnya.',
     ],
 
     'confirm' => [
@@ -207,6 +238,7 @@ return [
             'assignmentUserId' => 'pengguna penugasan',
             'assignmentRole' => 'peran penugasan',
             'assignmentRevocationReason' => 'alasan perubahan penugasan',
+            'confirmationReason' => 'justifikasi audit penugasan',
             'mappingItemId' => 'item Fase 1',
             'mappingRole' => 'peran pemetaan',
         ],
@@ -306,6 +338,7 @@ return [
             'cannot_replace' => 'Penugasan tidak dapat diganti.',
             'replacement_invalid' => 'Pengguna pengganti harus aktif, memiliki akses project, dan berbeda dari pengguna lama.',
             'replacement_conflict' => 'Pengguna pengganti memiliki penugasan aktif yang duplikat atau tidak independen.',
+            'confirmation_reason_required' => 'Justifikasi audit penugasan wajib diisi.',
         ],
         'mapping' => [
             'role_invalid' => 'Peran pemetaan wajib Utama atau Pendukung.',

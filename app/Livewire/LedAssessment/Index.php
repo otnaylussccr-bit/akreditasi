@@ -40,6 +40,8 @@ class Index extends Component
 
     public string $decisionNote = '';
 
+    public ?string $draftFingerprint = null;
+
     public string $notice = '';
 
     public function mount(LedAssessmentAuthorizationService $authorization, AccreditationProjectContextService $context): void
@@ -89,6 +91,7 @@ class Index extends Component
             'justification' => $this->justification,
             'gap_analysis' => $this->gapAnalysis,
             'recommendation' => $this->recommendation,
+            'draft_fingerprint' => $this->draftFingerprint,
         ]);
         $this->notice = __('led_assessment.notifications.draft_saved', ['revision' => $revision->revision_number]);
         $this->loadEditor();
@@ -167,7 +170,26 @@ class Index extends Component
         $selected = $assessments->firstWhere('id', $this->selectedAssessmentId);
         $repositoryDocuments = collect();
         $workingRevision = $selected?->currentWorkingRevision;
+        $reviewerFeedback = collect();
         $canEdit = $selected && Gate::allows('update', $selected);
+
+        if ($selected) {
+            $reviewerFeedback = $selected->revisions()
+                ->with(['events' => fn ($events) => $events
+                    ->where('action', 'revision_requested')
+                    ->whereNotNull('decision_note')
+                    ->with('actor')])
+                ->get()
+                ->flatMap(fn (AccreditationLedAssessmentRevision $revision) => $revision->events
+                    ->filter(fn ($event): bool => trim((string) $event->decision_note) !== '')
+                    ->map(fn ($event): array => ['event' => $event, 'revision_number' => $revision->revision_number]))
+                ->sortByDesc(fn (array $feedback): string => sprintf(
+                    '%020d-%020d',
+                    $feedback['event']->occurred_at?->getTimestamp() ?? 0,
+                    $feedback['event']->id,
+                ))
+                ->values();
+        }
 
         if ($selected && $canEdit && $workingRevision?->status === 'draft') {
             $linkedDocumentIds = $workingRevision->evidence->pluck('document_id');
@@ -205,6 +227,7 @@ class Index extends Component
             'assessmentGroups' => $assessmentGroups,
             'selectedAssessment' => $selected,
             'workingRevision' => $workingRevision,
+            'reviewerFeedback' => $reviewerFeedback,
             'rubrics' => $selected?->indicator->rubrics()->orderBy('position')->get() ?? collect(),
             'repositoryDocuments' => $repositoryDocuments,
             'canEdit' => (bool) $canEdit,
@@ -234,11 +257,12 @@ class Index extends Component
         $this->justification = (string) ($revision?->justification ?? '');
         $this->gapAnalysis = (string) ($revision?->gap_analysis ?? '');
         $this->recommendation = (string) ($revision?->recommendation ?? '');
+        $this->draftFingerprint = $revision?->draftFingerprint();
     }
 
     private function resetEditor(): void
     {
-        $this->reset(['rubricId', 'justification', 'gapAnalysis', 'recommendation', 'decisionNote', 'notice']);
+        $this->reset(['rubricId', 'justification', 'gapAnalysis', 'recommendation', 'decisionNote', 'draftFingerprint', 'notice']);
     }
 
     private function selectedAssessment(): AccreditationLedAssessment

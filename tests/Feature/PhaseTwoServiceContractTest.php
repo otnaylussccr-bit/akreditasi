@@ -13,6 +13,7 @@ use App\Models\AccreditationInstrument;
 use App\Models\AccreditationItem;
 use App\Models\AccreditationLedAssessment;
 use App\Models\AccreditationLedAssessmentCycle;
+use App\Models\AccreditationLedAssessmentRevision;
 use App\Models\AccreditationLedAssessorAssignment;
 use App\Models\AccreditationLedIndicator;
 use App\Models\AccreditationLedIndicatorItemMapping;
@@ -1230,6 +1231,280 @@ class PhaseTwoServiceContractTest extends TestCase
         }
     }
 
+    public function test_assessor_justification_edits_persist_through_review_and_stale_draft_state_cannot_overwrite_them(): void
+    {
+        $domain = $this->domain();
+        $supporting = $this->user('PIC Kriteria');
+        $initial = 'Komplit';
+        $edited = 'Komplit. Tambahan analisis oleh Penilai Utama untuk UAT.';
+        $this->actingAs($domain['manager']);
+        app(LedAssessorAssignmentService::class)->assign(
+            $domain['cycle'],
+            $domain['indicator'],
+            $supporting,
+            'assessor_support',
+            $domain['manager'],
+            'Menetapkan Penilai Pendukung untuk draft bersama.',
+        );
+
+        $this->actingAs($supporting);
+        Livewire::withQueryParams($this->assessmentParams($domain))
+            ->test(LedAssessmentIndex::class)
+            ->set('rubricId', $domain['rubric']->id)
+            ->set('justification', $initial)
+            ->call('saveDraft')
+            ->assertHasNoErrors()
+            ->assertSet('justification', $initial);
+        $this->assertDatabaseHas('accreditation_led_assessment_revisions', [
+            'assessment_id' => $domain['assessment']->id,
+            'revision_number' => 1,
+            'justification' => $initial,
+        ]);
+
+        $this->actingAs($domain['assessor']);
+        $lead = Livewire::withQueryParams($this->assessmentParams($domain))
+            ->test(LedAssessmentIndex::class)
+            ->assertSet('justification', $initial);
+        $this->actingAs($supporting);
+        $staleSupporting = Livewire::withQueryParams($this->assessmentParams($domain))
+            ->test(LedAssessmentIndex::class)
+            ->assertSet('justification', $initial);
+
+        $this->actingAs($domain['assessor']);
+        $lead
+            ->set('justification', $edited)
+            ->call('saveDraft')
+            ->assertHasNoErrors()
+            ->assertSet('justification', $edited);
+        $this->assertSame($edited, AccreditationLedAssessmentRevision::where('assessment_id', $domain['assessment']->id)->sole()->justification);
+
+        $this->actingAs($supporting);
+        $staleSupporting
+            ->set('justification', $initial)
+            ->call('saveDraft')
+            ->assertHasErrors(['assessment']);
+        $this->assertSame($edited, AccreditationLedAssessmentRevision::where('assessment_id', $domain['assessment']->id)->sole()->justification);
+
+        $this->actingAs($domain['assessor']);
+        Livewire::withQueryParams($this->assessmentParams($domain))
+            ->test(LedAssessmentIndex::class)
+            ->assertSet('justification', $edited)
+            ->assertSee('Simpan Draft sebelum Submit Penilaian')
+            ->call('submit')
+            ->assertHasNoErrors();
+        $submitted = AccreditationLedAssessmentRevision::where('assessment_id', $domain['assessment']->id)->sole();
+        $this->assertSame('submitted', $submitted->status);
+        $this->assertSame($edited, $submitted->justification);
+
+        try {
+            app(LedAssessmentWorkflowService::class)->saveDraft($domain['assessment']->fresh(), $domain['assessor'], [
+                'rubric_id' => $domain['rubric']->id,
+                'justification' => $initial,
+            ]);
+            $this->fail('Submitted revisions must not be silently edited.');
+        } catch (ValidationException) {
+            $this->assertSame($edited, $submitted->fresh()->justification);
+        }
+
+        $this->actingAs($domain['reviewer']);
+        Livewire::withQueryParams($this->assessmentParams($domain))
+            ->test(LedAssessmentIndex::class)
+            ->assertSet('justification', $edited)
+            ->call('startReview')
+            ->set('decisionNote', 'Perjelas keterkaitan dengan indikator.')
+            ->call('requestRevision')
+            ->assertHasNoErrors();
+
+        $this->actingAs($domain['assessor']);
+        Livewire::withQueryParams($this->assessmentParams($domain))
+            ->test(LedAssessmentIndex::class)
+            ->assertSet('justification', $edited)
+            ->call('saveDraft')
+            ->assertHasNoErrors()
+            ->assertSet('justification', $edited)
+            ->call('submit')
+            ->assertHasNoErrors();
+
+        $revisions = AccreditationLedAssessmentRevision::query()
+            ->where('assessment_id', $domain['assessment']->id)
+            ->orderBy('revision_number')
+            ->get();
+        $this->assertCount(2, $revisions);
+        $this->assertSame($edited, $revisions[0]->justification);
+        $this->assertSame($edited, $revisions[1]->justification);
+        $this->assertSame('revision_requested', $revisions[0]->status);
+        $this->assertSame('submitted', $revisions[1]->status);
+        $this->assertDatabaseHas('accreditation_led_review_events', ['revision_id' => $revisions[0]->id, 'action' => 'revision_requested']);
+
+        $this->actingAs($supporting);
+        try {
+            app(LedAssessmentWorkflowService::class)->submit($revisions[1], $supporting);
+            $this->fail('Supporting Assessors must not submit an assessment.');
+        } catch (AuthorizationException) {
+            $this->assertSame('submitted', $revisions[1]->fresh()->status);
+        }
+    }
+
+    public function test_revision_request_feedback_is_persisted_visible_to_assigned_assessors_and_preserved_after_resubmission(): void
+    {
+        $domain = $this->domain();
+        $supporting = $this->user('PIC Kriteria');
+        $note = 'Lengkapi dasar penilaian VMTS dan kaitkan dengan bukti terverifikasi.';
+        $this->actingAs($domain['manager']);
+        app(LedAssessorAssignmentService::class)->assign(
+            $domain['cycle'],
+            $domain['indicator'],
+            $supporting,
+            'assessor_support',
+            $domain['manager'],
+            'Menetapkan Penilai Pendukung untuk membaca tindak lanjut reviewer.',
+        );
+
+        $requested = $this->requestRevisionFor($domain, $note);
+        $this->assertSame('revision_requested', $requested->status);
+        $this->assertDatabaseHas('accreditation_led_review_events', [
+            'revision_id' => $requested->id,
+            'actor_id' => $domain['reviewer']->id,
+            'action' => 'revision_requested',
+            'decision_note' => $note,
+        ]);
+
+        foreach ([$domain['assessor'], $supporting] as $assessor) {
+            $this->actingAs($assessor);
+            Livewire::withQueryParams([
+                'proyek' => $domain['project']->id,
+                'siklus' => $domain['cycle']->id,
+                'indikator' => $domain['assessment']->id,
+            ])->test(LedAssessmentIndex::class)
+                ->assertSee('Umpan Balik Reviewer')
+                ->assertSee($note)
+                ->assertSee($domain['reviewer']->name)
+                ->assertSee('Revisi Diminta');
+        }
+
+        $this->actingAs($domain['assessor']);
+        $resubmitted = app(LedAssessmentWorkflowService::class)->submit(
+            app(LedAssessmentWorkflowService::class)->saveDraft($domain['assessment']->fresh(), $domain['assessor'], [
+                'rubric_id' => $domain['rubric']->id,
+                'justification' => 'Justifikasi revisi menindaklanjuti umpan balik reviewer.',
+            ]),
+            $domain['assessor'],
+        );
+        $this->assertSame(2, $resubmitted->revision_number);
+        $this->assertSame('submitted', $resubmitted->status);
+        Livewire::withQueryParams([
+            'proyek' => $domain['project']->id,
+            'siklus' => $domain['cycle']->id,
+            'indikator' => $domain['assessment']->id,
+        ])->test(LedAssessmentIndex::class)
+            ->assertSee($note)
+            ->assertSee('r1');
+
+        try {
+            app(LedAssessmentWorkflowService::class)->startReview($resubmitted->fresh(), $domain['assessor']);
+            $this->fail('The submitting Lead Assessor must not review the resubmission.');
+        } catch (AuthorizationException) {
+            $this->assertSame('submitted', $resubmitted->fresh()->status);
+        }
+
+        $this->assertSame(0, app(LedAssessmentDashboardService::class)->summary($domain['cycle'], $domain['manager'])['approved']);
+    }
+
+    public function test_revision_request_rejects_empty_feedback_without_creating_a_decision_event(): void
+    {
+        $domain = $this->domain();
+        $workflow = app(LedAssessmentWorkflowService::class);
+        $this->actingAs($domain['assessor']);
+        $submitted = $workflow->submit($workflow->saveDraft($domain['assessment'], $domain['assessor'], [
+            'rubric_id' => $domain['rubric']->id,
+            'justification' => 'Draft yang akan direview.',
+        ]), $domain['assessor']);
+        $this->actingAs($domain['reviewer']);
+        $inReview = $workflow->startReview($submitted, $domain['reviewer']);
+
+        try {
+            $workflow->requestRevision($inReview, $domain['reviewer'], " \n\t ");
+            $this->fail('A revision request without meaningful feedback must fail.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('decision_note', $exception->errors());
+            $this->assertSame('in_review', $inReview->fresh()->status);
+            $this->assertDatabaseMissing('accreditation_led_review_events', [
+                'revision_id' => $inReview->id,
+                'action' => 'revision_requested',
+            ]);
+        }
+    }
+
+    public function test_reviewer_feedback_is_scoped_to_the_assigned_indicator_cycle_and_project(): void
+    {
+        $domain = $this->domain();
+        $note = 'Umpan balik indikator yang ditugaskan.';
+        $this->requestRevisionFor($domain, $note);
+        $outside = $this->domain();
+        $outsideNote = 'Umpan balik proyek lain tidak boleh terlihat.';
+        $this->requestRevisionFor($outside, $outsideNote);
+
+        $otherAssessor = $this->user('PIC Kriteria');
+        $otherIndicator = AccreditationLedIndicator::create([
+            'instrument_version_id' => $domain['version']->id,
+            'indicator_number' => 2,
+            'criterion_code' => 'B',
+            'title' => 'Indikator lain',
+            'position' => 2,
+            'is_assessable' => true,
+        ]);
+        $otherAssessment = AccreditationLedAssessment::create([
+            'cycle_id' => $domain['cycle']->id,
+            'project_id' => $domain['project']->id,
+            'instrument_version_id' => $domain['version']->id,
+            'indicator_id' => $otherIndicator->id,
+        ]);
+        $otherCycle = AccreditationLedAssessmentCycle::create([
+            'project_id' => $domain['project']->id,
+            'instrument_id' => $domain['project']->instrument_id,
+            'instrument_version_id' => $domain['version']->id,
+            'cycle_number' => 2,
+            'cycle_name' => 'Siklus lain',
+            'status' => 'active',
+            'created_by' => $domain['manager']->id,
+        ]);
+
+        $this->actingAs($domain['manager']);
+        app(LedAssessorAssignmentService::class)->assign(
+            $domain['cycle'],
+            $otherIndicator,
+            $otherAssessor,
+            'assessor_primary',
+            $domain['manager'],
+            'Menugaskan Penilai Utama ke indikator lain.',
+        );
+
+        $this->actingAs($domain['assessor']);
+        Livewire::withQueryParams([
+            'proyek' => $domain['project']->id,
+            'siklus' => $domain['cycle']->id,
+            'indikator' => $domain['assessment']->id,
+        ])->test(LedAssessmentIndex::class)
+            ->assertSee($note)
+            ->assertDontSee($outsideNote);
+        Livewire::withQueryParams([
+            'proyek' => $outside['project']->id,
+            'siklus' => $outside['cycle']->id,
+        ])->test(LedAssessmentIndex::class)->assertForbidden();
+        Livewire::withQueryParams([
+            'proyek' => $domain['project']->id,
+            'siklus' => $otherCycle->id,
+        ])->test(LedAssessmentIndex::class)->assertForbidden();
+
+        $this->actingAs($otherAssessor);
+        Livewire::withQueryParams([
+            'proyek' => $domain['project']->id,
+            'siklus' => $domain['cycle']->id,
+            'indikator' => $domain['assessment']->id,
+        ])->test(LedAssessmentIndex::class)->assertForbidden();
+        $this->assertSame($otherAssessment->id, $this->assessmentIdFor($otherAssessor, $domain));
+    }
+
     private function domain(string $assessorRole = 'PIC Kriteria', string $reviewerRole = 'Reviewer'): array
     {
         $manager = $this->user('Project Manager');
@@ -1272,6 +1547,38 @@ class PhaseTwoServiceContractTest extends TestCase
         $assignmentService->assign($cycle, $indicator, $reviewer, 'reviewer', $manager, 'Menetapkan Reviewer independen awal.');
 
         return compact('manager', 'assessor', 'reviewer', 'project', 'version', 'indicator', 'rubric', 'cycle', 'assessment', 'assessorAssignment');
+    }
+
+    private function requestRevisionFor(array $domain, string $note): AccreditationLedAssessmentRevision
+    {
+        $workflow = app(LedAssessmentWorkflowService::class);
+        $this->actingAs($domain['assessor']);
+        $submitted = $workflow->submit($workflow->saveDraft($domain['assessment'], $domain['assessor'], [
+            'rubric_id' => $domain['rubric']->id,
+            'justification' => 'Draft untuk permintaan revisi reviewer.',
+        ]), $domain['assessor']);
+        $this->actingAs($domain['reviewer']);
+
+        return $workflow->requestRevision($workflow->startReview($submitted, $domain['reviewer']), $domain['reviewer'], $note);
+    }
+
+    private function assessmentParams(array $domain): array
+    {
+        return [
+            'proyek' => $domain['project']->id,
+            'siklus' => $domain['cycle']->id,
+            'indikator' => $domain['assessment']->id,
+        ];
+    }
+
+    private function assessmentIdFor(User $user, array $domain): ?int
+    {
+        $this->actingAs($user);
+
+        return Livewire::withQueryParams([
+            'proyek' => $domain['project']->id,
+            'siklus' => $domain['cycle']->id,
+        ])->test(LedAssessmentIndex::class)->get('selectedAssessmentId');
     }
 
     private function verifiedDocument(array $domain, string $status, string $name = 'verified.pdf'): array
