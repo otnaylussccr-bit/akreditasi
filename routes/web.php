@@ -17,6 +17,7 @@ use App\Livewire\Documents\VerificationShow;
 use App\Livewire\FollowUpLed\Index as FollowUpLedIndex;
 use App\Livewire\LedAssessment\Dashboard as LedAssessmentDashboard;
 use App\Livewire\LedAssessment\Index as LedAssessmentIndex;
+use App\Livewire\LedAssessment\RelationshipExplorer;
 use App\Livewire\Profile\ChangePassword;
 use App\Livewire\Repository\Index as RepositoryIndex;
 use App\Livewire\TeamActivity\Index as TeamActivityIndex;
@@ -38,6 +39,7 @@ Route::middleware(['auth', 'active'])->group(function (): void {
     Route::middleware('operational')->group(function (): void {
         Route::get('/follow-up-led', FollowUpLedIndex::class)->name('follow-up-led.index');
         Route::get('/penilaian-led', LedAssessmentIndex::class)->name('led-assessment.index');
+        Route::get('/relasi-indikator-item-led', RelationshipExplorer::class)->name('led-assessment.relationship-explorer');
         Route::get('/pengaturan/operasional-led', LedSetupIndex::class)->middleware('can:project.manage')->name('administration.led-setup.index');
         Route::get('/input-dokumen', DocumentIndex::class)->name('documents.index');
         Route::get('/repository-bukti', RepositoryIndex::class)->name('repository.index');

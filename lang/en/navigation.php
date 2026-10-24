@@ -11,6 +11,7 @@ return [
     'verification' => 'Document Verification',
     'follow_up_led' => 'LED Follow-Up',
     'led_assessment' => 'LED Assessment',
+    'led_relationship_explorer' => 'LED Relationship Explorer',
     'led_configuration' => 'LED Configuration',
     'team_activity' => 'Team Activity',
     'settings' => 'Settings',

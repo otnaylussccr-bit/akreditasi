@@ -61,6 +61,10 @@ class SidebarNavigationService
             'verification' => $this->entry($reviewableProject !== null, $this->projectParams($reviewableProject)),
             'follow_up_led' => $this->entry($operationalAccess && $phaseOneProject !== null, $this->projectParams($phaseOneProject)),
             'led_assessment' => $this->entry($ledProject !== null, $this->projectParams($ledProject, $ledCycleId)),
+            'led_relationship_explorer' => $this->entry(
+                $ledProject !== null && $this->operational->allows($user, 'led-assessment.relationship-explorer'),
+                $this->projectParams($ledProject, $ledCycleId),
+            ),
             'led_configuration' => $this->entry($manageableProject !== null, $this->projectParams($manageableProject)),
             'team_activity' => $this->entry(
                 $operationalAccess && $phaseOneProject !== null && $this->activity->canView($user),

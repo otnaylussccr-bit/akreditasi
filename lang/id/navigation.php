@@ -11,6 +11,7 @@ return [
     'verification' => 'Verifikasi Dokumen',
     'follow_up_led' => 'Follow Up LED',
     'led_assessment' => 'Penilaian LED',
+    'led_relationship_explorer' => 'Penjelajah Relasi LED',
     'led_configuration' => 'Konfigurasi LED',
     'team_activity' => 'Aktivitas Tim',
     'settings' => 'Pengaturan',

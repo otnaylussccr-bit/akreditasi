@@ -12,6 +12,7 @@
             request()->routeIs('follow-up-led.index') => 'follow_up_led.meta_title',
             request()->routeIs('team-activity.index') => 'team_activity.meta_title',
             request()->routeIs('led-assessment.index') => 'led_assessment.meta.index',
+            request()->routeIs('led-assessment.relationship-explorer') => 'led_explorer.meta.title',
             request()->routeIs('led-assessment.dashboard') => 'led_assessment.meta.dashboard',
             request()->routeIs('administration.led-setup.index') => 'led_setup.meta_title',
             request()->routeIs('administration.users.index') => 'administration.users.meta_title',
@@ -42,6 +43,7 @@
             request()->routeIs('follow-up-led.*') => 'navigation.follow_up_led',
             request()->routeIs('team-activity.*') => 'navigation.team_activity',
             request()->routeIs('led-assessment.index') => 'navigation.led_assessment',
+            request()->routeIs('led-assessment.relationship-explorer') => 'navigation.led_relationship_explorer',
             request()->routeIs('led-assessment.dashboard') => 'navigation.assessment_dashboard',
             request()->routeIs('administration.led-setup.*') => 'navigation.sections.led_setup',
             default => 'navigation.dashboard',
@@ -104,6 +106,12 @@
                 <a class="nav-link {{ request()->routeIs('led-assessment.index') ? 'active' : '' }}" href="{{ route('led-assessment.index', $navigation['led_assessment']['params']) }}" wire:navigate>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2Zm3 4v2h8V7H8Zm0 4v2h5v-2H8Zm0 4v2h3v-2H8Zm8-4 1.5 1.5L20 10l1.4 1.4-3.9 3.9-2.9-2.9L16 11Z"/></svg>
                     <x-localized-text key="navigation.led_assessment" />
+                </a>
+            @endif
+            @if ($navigation['led_relationship_explorer']['visible'])
+                <a class="nav-link {{ request()->routeIs('led-assessment.relationship-explorer') ? 'active' : '' }}" href="{{ route('led-assessment.relationship-explorer', $navigation['led_relationship_explorer']['params']) }}" wire:navigate>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h5v5H5V4Zm9 0h5v5h-5V4ZM5 15h5v5H5v-5Zm2-4h10v2H7v-2Zm4-7h2v16h-2V4Z"/></svg>
+                    <x-localized-text key="navigation.led_relationship_explorer" />
                 </a>
             @endif
             @if ($navigation['led_configuration']['visible'])

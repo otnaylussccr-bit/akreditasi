@@ -16,7 +16,7 @@ class OperationalModuleAccessService
             return true;
         }
 
-        return $routeName === 'led-assessment.index'
+        return in_array($routeName, ['led-assessment.index', 'led-assessment.relationship-explorer'], true)
             && $user->ledAssessorAssignments()->whereNull('revoked_at')->exists();
     }
 }
